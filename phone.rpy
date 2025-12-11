@@ -10,75 +10,6 @@ default phone_mode = False
 init python:
     import re
 
-    def open_phone_app(app_name):
-        """
-        Ouvre une application du téléphone.
-        - Empile l'app courante dans phone_nav_stack pour que 'retour' fonctionne.
-        """
-        global current_app, phone_nav_stack
-
-        # Si on change vraiment d'app, on empile l'ancienne
-        if current_app is not None and current_app != app_name:
-            phone_nav_stack.append(current_app)
-
-        current_app = app_name
-
-    def phone_home():
-        """
-        Retour direct à l'écran d'accueil du téléphone.
-        Vide la pile de navigation.
-        """
-        global current_app, phone_nav_stack
-        current_app = "home"
-        phone_nav_stack = []
-
-    def phone_back():
-        """
-        Retour à l'app précédente si possible, sinon à l'accueil.
-        Utilisé par le bouton 'back' de la barre du bas.
-        """
-        global current_app, phone_nav_stack
-
-        if phone_nav_stack:
-            current_app = phone_nav_stack.pop()
-        else:
-            current_app = "home"
-            
-    #Liste des applis (message, save, galerie, patreon, itch, subsstar, settings)
-    app_buttons = [
-        { # Messenger
-            "image": "gui/buttons/messenger_%s.png",
-            "action": Function(open_phone_app, "messenger"),
-        },
-        { # Saves
-            "image": "gui/buttons/save_%s.png",
-            "action": Function(open_phone_app, "saves"),
-        },
-        { # Gallery
-            "image": "gui/buttons/gallery_%s.png",
-            "action": Function(open_phone_app, "gallery"),
-        },
-        { # Patreon
-            "image": "gui/buttons/patreon_%s.png",
-            "action": OpenURL("https://www.patreon.com/c/Darael"),
-        },
-        { # Itch.io
-            "image": "gui/buttons/itch_%s.png",
-            "action": OpenURL("https://…"),
-        },
-        { # Succes
-            "image": "gui/buttons/achievements_%s.png",
-            "action": Function(open_phone_app, "succes"),
-        },
-        { # Settings
-            "image": "gui/buttons/settings_%s.png",
-            "action": Function(open_phone_app, "settings"),
-        },
-
-        # Subscribestar
-
-    ]
-
     # ------------------------- Navigation --------------------------------------
 
     def set_active_app(app_id, add_history=True, clear_stack=False):
@@ -123,6 +54,41 @@ init python:
         if store.current_app in store.phone_channels:
             return store.phone_channel_data[store.current_app]["display_name"]
         return default_title
+
+    #Liste des applis (message, save, galerie, patreon, itch, subsstar, settings)
+    app_buttons = [
+        { # Messenger
+            "image": "gui/buttons/messenger_%s.png",
+            "action": Function(open_phone_app, "messenger"),
+        },
+        { # Saves
+            "image": "gui/buttons/save_%s.png",
+            "action": Function(open_phone_app, "saves"),
+        },
+        { # Gallery
+            "image": "gui/buttons/gallery_%s.png",
+            "action": Function(open_phone_app, "gallery"),
+        },
+        { # Patreon
+            "image": "gui/buttons/patreon_%s.png",
+            "action": OpenURL("https://www.patreon.com/c/Darael"),
+        },
+        { # Itch.io
+            "image": "gui/buttons/itch_%s.png",
+            "action": OpenURL("https://…"),
+        },
+        { # Succes
+            "image": "gui/buttons/achievements_%s.png",
+            "action": Function(open_phone_app, "succes"),
+        },
+        { # Settings
+            "image": "gui/buttons/settings_%s.png",
+            "action": Function(open_phone_app, "settings"),
+        },
+
+        # Subscribestar
+
+    ]
 
     # Mapping of app identifiers to their corresponding screens.
     phone_screen_routes = {
