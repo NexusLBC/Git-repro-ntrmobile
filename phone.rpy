@@ -8,6 +8,42 @@ default lock_done = False
 default phone_mode = False
 
 init python:
+    import re
+
+    def open_phone_app(app_name):
+        """
+        Ouvre une application du téléphone.
+        - Empile l'app courante dans phone_nav_stack pour que 'retour' fonctionne.
+        """
+        global current_app, phone_nav_stack
+
+        # Si on change vraiment d'app, on empile l'ancienne
+        if current_app is not None and current_app != app_name:
+            phone_nav_stack.append(current_app)
+
+        current_app = app_name
+
+    def phone_home():
+        """
+        Retour direct à l'écran d'accueil du téléphone.
+        Vide la pile de navigation.
+        """
+        global current_app, phone_nav_stack
+        current_app = "home"
+        phone_nav_stack = []
+
+    def phone_back():
+        """
+        Retour à l'app précédente si possible, sinon à l'accueil.
+        Utilisé par le bouton 'back' de la barre du bas.
+        """
+        global current_app, phone_nav_stack
+
+        if phone_nav_stack:
+            current_app = phone_nav_stack.pop()
+        else:
+            current_app = "home"
+            
     #Liste des applis (message, save, galerie, patreon, itch, subsstar, settings)
     app_buttons = [
         { # Messenger
