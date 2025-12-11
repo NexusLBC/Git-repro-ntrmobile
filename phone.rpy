@@ -213,8 +213,8 @@ init python:
         # add messages to a channel in the phone
     # kind 0 = normal message, 1 = timestamp, 2 = photo, 3 = texte avec emojis
     def send_phone_message(sender, message_text, channel_name,
-                           message_kind=0, summary_alt="none",
-                           image_x=320, image_y=320, do_pause=True):
+        message_kind=0, summary_alt="none",
+        image_x=320, image_y=320, do_pause=True):
         """
         Envoie un message dans un salon de téléphone et met à jour les infos.
         """
@@ -269,12 +269,12 @@ init python:
             narrator.add_history(kind="adv", who=sender, what=message_text)
         elif message_kind == 1:
             narrator.add_history(kind="adv",
-                                 who=phone_config["history_timestamp_prefix"],
-                                 what=message_text)
+            who=phone_config["history_timestamp_prefix"],
+            what=message_text)
         elif message_kind == 2:
             narrator.add_history(kind="adv",
-                                 who=sender,
-                                 what="Sent a photo.")
+            who=sender,
+            what="Sent a photo.")
 
         renpy.checkpoint()
 
@@ -839,11 +839,11 @@ screen app_messenger():
                                     if sender == phone_config["phone_player_name"]:
                                         $ bubble_image = "gui/bubble_mc.png"
                                         $ text_colour = "#FFFFFF"
-                                        $ msg_align = 1.0
+                                        $ anim_direction = 1
                                     else:
                                         $ bubble_image = "gui/bubble_other.png"
                                         $ text_colour = "#FFFFFF"
-                                        $ msg_align = 0.0
+                                        $ anim_direction = -1
 
                                     #$ msg_padding = phone_config["message_padding"]
 
@@ -855,30 +855,30 @@ screen app_messenger():
 #                                            xalign msg_padding
 #                                            xoffset 5
 
-                                    # now make the message bubble for text
-#                                    if message_kind == 0:
-#                                        frame:
-#                                            if sender == phone_config["phone_player_name"]:
-#                                                xpos 1.0 - msg_padding xanchor 1.0
-#                                            else:
-#                                                xpos msg_padding xanchor 0.0
-#                                            background Frame(bubble_image, 23, 23)
-#                                            padding (15, 10)
-#                                            xmaximum 360
-#                                            if msg_id == latest_channel_id and not channel_seen_latest[current_app]:
-#                                                at message_appear(anim_direction)
-#                                                $ channel_seen_latest[current_app] = True
-#                                                $ channel_notifs[current_app] = False
-#                                                if phone_config["auto_scroll"]:
-#                                                    $ yadj.value = (yadj.range + 1000)
-#                                            text message_text:
-#                                                color text_colour
-#                                                size phone_config["message_font_size"]
-#                                                layout "tex"
-#                                        $ last_sender_in_chat_view = sender
-#                                    elif message_kind == 1:
+                                    # normal message : kind = 0
+                                    if message_kind == 0:
+                                        frame:
+                                            if sender == phone_config["phone_player_name"]:
+                                                xpos 1.0 - msg_padding xanchor 1.0
+                                            else:
+                                                xpos msg_padding xanchor 0.0
+                                            background Frame(bubble_image, 23, 23)
+                                            padding (15, 10)
+                                            xmaximum 360
+                                            if msg_id == latest_channel_id and not channel_seen_latest[current_app]:
+                                                at message_appear(anim_direction)
+                                                $ channel_seen_latest[current_app] = True
+                                                $ channel_notifs[current_app] = False
+                                                if phone_config["auto_scroll"]:
+                                                    $ yadj.value = (yadj.range + 1000)
+                                            text message_text:
+                                                color text_colour
+                                                size phone_config["message_font_size"]
+                                                layout "tex"
+                                        $ last_sender_in_chat_view = sender
+                                    elif message_kind == 1:
 
-                                    # timestamp
+                                    # timestamp kind = 1
                                     if message_kind == 1:
                                         null height 15
                                         hbox:
@@ -890,7 +890,7 @@ screen app_messenger():
                                         null height 15
                                         $ last_sender_in_chat_view = None
 
-                                    # photo
+                                    # photo kind = 2
                                     elif message_kind == 2:
                                         frame:
                                             xpos msg_align
@@ -902,7 +902,7 @@ screen app_messenger():
                                             add Image(message_text) at scale_to_fit(image_x, image_y)
                                         $ last_sender_in_chat_view = sender
 
-                                    # texte normal ou avec emojis
+                                    # texte avec emojis kind = 3
                                     else:
                                         frame:
                                             xpos msg_align
