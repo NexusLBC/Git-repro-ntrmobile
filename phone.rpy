@@ -3,6 +3,7 @@
 default current_background = Image("gui/root_screen.png")
 default dark_mode = False
 default current_app = "home"
+default phone_nav_stack = []
 default lock_done = False
 default phone_mode = False
 
@@ -11,15 +12,15 @@ init python:
     app_buttons = [
         { # Messenger
             "image": "gui/buttons/messenger_%s.png",
-            "action": SetVariable("current_app", "messenger"),
+            "action": Function(open_phone_app, "messenger"),
         },
         { # Saves
             "image": "gui/buttons/save_%s.png",
-            "action": SetVariable("current_app", "saves"),
+            "action": Function(open_phone_app, "saves"),
         },
         { # Gallery
             "image": "gui/buttons/gallery_%s.png",
-            "action": SetVariable("current_app", "gallery"),
+            "action": Function(open_phone_app, "gallery"),
         },
         { # Patreon
             "image": "gui/buttons/patreon_%s.png",
@@ -31,23 +32,69 @@ init python:
         },
         { # Succes
             "image": "gui/buttons/achievements_%s.png",
-            "action": SetVariable("current_app", "succes"),
+            "action": Function(open_phone_app, "succes"),
         },
         { # Settings
             "image": "gui/buttons/settings_%s.png",
-            "action": SetVariable("current_app", "settings"),
+            "action": Function(open_phone_app, "settings"),
         },
 
         # Subscribestar
 
     ]
 
+    # ------------------------- Navigation --------------------------------------
+
+    def set_active_app(app_id, add_history=True, clear_stack=False):
+        """Update the current phone app and optionally push the previous one."""
+        previous_app = store.current_app
+
+        if clear_stack:
+            store.phone_nav_stack = []
+
+        if (
+            add_history
+            and previous_app is not None
+            and previous_app != "home"
+            and previous_app != app_id
+        ):
+            store.phone_nav_stack.append(previous_app)
+
+        store.current_app = app_id
+
+    def open_phone_app(app_id):
+        """Open a top-level phone app from the home screen or another app."""
+        set_active_app(app_id, add_history=(store.current_app != "home"), clear_stack=(store.current_app == "home"))
+
+    def open_phone_channel(channel_name):
+        """Open a messenger channel while keeping navigation history."""
+        set_active_app(channel_name, add_history=True)
+
     def phone_back():
-        if store.current_app != "home":
+        if store.disable_phone_menu_switch:
+            return
+
+        if store.phone_nav_stack:
+            store.current_app = store.phone_nav_stack.pop()
+        elif store.current_app != "home":
             store.current_app = "home"
 
     def phone_home():
+        store.phone_nav_stack = []
         store.current_app = "home"
+
+    def phone_app_title(default_title, app_id):
+        if store.current_app in store.phone_channels:
+            return store.phone_channel_data[store.current_app]["display_name"]
+        return default_title
+
+    # Mapping of app identifiers to their corresponding screens.
+    phone_screen_routes = {
+        "messenger": "app_messenger",
+        "gallery": "app_gallery",
+        "saves": "app_saves",
+        "settings": "app_settings",
+    }
 
     #------------------------ Style, Couleurs --------------------------------
 
@@ -580,28 +627,23 @@ screen app_header(title, app_id):
         ysize 150
         background app_color(app_id)
 
+        $ header_title = phone_app_title(title, app_id)
+        $ can_go_back = current_app != "home"
+
         hbox:
             xfill True
             yalign 0.5
             spacing 30
             #padding (20, 20)
 
-            if current_app == "home": # modif current app -> chat
-                textbutton "◀":
-                    xminimum 80
-                    action SetVariable("current_app", "messenger")
+            textbutton "◀":
+                xminimum 80
+                action Function(phone_back)
+                sensitive can_go_back and not disable_phone_menu_switch
 
-                text title:
-                    xalign 0.5
-                    size 40
-            else:
-                textbutton "◀":
-                    xminimum 80
-                    action SetVariable("current_app", "home")
-
-                text title:
-                    xalign 0.5
-                    size 40
+            text header_title:
+                xalign 0.5
+                size 40
 
 screen phone_navbar():
 
@@ -628,6 +670,7 @@ screen phone_navbar():
                 xalign 0.5
                 yalign 0.5
                 action Function(phone_back)
+                sensitive not disable_phone_menu_switch
 
             # Bouton "Home" (menu principal du téléphone)
             imagebutton:
@@ -675,17 +718,11 @@ screen Phonescreen():
                 else:
                     null
 
-    elif current_app == "messenger":
+    elif current_app == "messenger" or current_app in phone_channels:
         use app_messenger
 
-    elif current_app == "gallery":
-        use app_gallery
-
-    elif current_app == "saves":
-        use app_saves
-
-    elif current_app == "settings":
-        use app_settings
+    elif current_app in phone_screen_routes:
+        use expression phone_screen_routes[current_app]
 
     use phone_navbar
 
@@ -737,7 +774,7 @@ screen app_messenger():
                                     xfill True
                                     action [
                                         SetDict(channel_notifs, channel_name, False),
-                                        SetVariable("current_app", channel_name)
+                                        Function(open_phone_channel, channel_name)
                                     ]
                                     background "#0000"
                                     hover_background "#ffffff20"
