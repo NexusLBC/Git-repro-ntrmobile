@@ -122,7 +122,7 @@ init python:
     # ------------------------- Variables --------------------------------------
 
     phone_channel_data = {} # {channel_name: {"display_name": "...", "icon": "...", "participants": [], "is_group": False}}
-    phone_channels = {}  # {channel_name: [(id, sender, message_string, kind, ...), ...]}
+    phone_channels = messenger_conversations  # legacy alias to keep compatibility
     channel_last_message_id = {} # {channel_name: last_id}
     channel_seen_latest = {} # {channel_name: seen_status} (this could be more intricate to track if EACH message was seen, but that's overkill)
     channel_notifs = {} # {channel_name: notification_status} (True/False)
@@ -160,19 +160,18 @@ init python:
                 is_group (bool, optional): Set to True if this is a group chat. Defaults to False.
         """
         global phone_channel_data, phone_channels, channel_last_message_id, channel_notifs, channel_seen_latest, channel_visible
-        if channel_id not in phone_channel_data:
-            phone_channel_data[channel_id] = {
-                "display_name": display_name,
-                "icon": icon_path,
-                "participants": participants,
-                "is_group": is_group
-            }
-            phone_channels[channel_id] = []
-            channel_last_message_id[channel_id] = 0
-            channel_notifs[channel_id] = False
-            channel_seen_latest[channel_id] = True
-            channel_visible[channel_id] = True
-            channel_latest_global_id[channel_id] = 0
+        ensure_messenger_contact(channel_id, display_name=display_name, avatar=icon_path)
+        phone_channel_data[channel_id] = {
+            "display_name": display_name,
+            "icon": icon_path,
+            "participants": participants,
+            "is_group": is_group
+        }
+        channel_last_message_id[channel_id] = 0
+        channel_notifs[channel_id] = False
+        channel_seen_latest[channel_id] = True
+        channel_visible[channel_id] = True
+        channel_latest_global_id[channel_id] = 0
 
     # add messages to a channel in the phone (kind 0 = normal message, kind 1 = timestamp, kind 2 = photo, kind 3 = has emojis)
         # add messages to a channel in the phone
@@ -185,23 +184,17 @@ init python:
         """
         global _phone_global_message_counter, current_global_id
 
-        # Sécurité : si le salon n’existe pas
-        if channel_name not in phone_channels:
-            renpy.log("Tried to send message to non-existent channel: " + channel_name)
-            return
+        load_messenger_from_persistent()
+        ensure_messenger_contact(channel_name)
 
-        # --- Son (sauf timestamps) ---
         if message_kind != 1:
             if sender == phone_config["phone_player_name"]:
-                # Son d’envoi (message du joueur)
                 if phone_config.get("play_sound_send", False):
                     renpy.sound.play("audio/phone/send.mp3", channel="sound")
             else:
-                # Son de réception (message d’un perso)
                 if phone_config.get("play_sound_receive", False):
                     renpy.sound.play("audio/phone/receive.mp3", channel="sound")
 
-        # --- Gestion des IDs / ordres des messages ---
         _phone_global_message_counter += 1
         current_global_id = _phone_global_message_counter
         channel_latest_global_id[channel_name] = current_global_id
@@ -210,26 +203,21 @@ init python:
         current_id = last_id + 1
         channel_last_message_id[channel_name] = current_id
 
-        # Stockage du message
-        message_data = (
-            current_id,
+        kind_map = {0: "text", 1: "timestamp", 2: "image", 3: "text"}
+        add_messenger_message(
+            channel_name,
             sender,
             message_text,
-            message_kind,
-            current_global_id,
-            summary_alt,
-            image_x,
-            image_y
+            kind=kind_map.get(message_kind, "text"),
+            summary_alt=summary_alt,
+            image_size=(image_x, image_y),
         )
-        phone_channels[channel_name].append(message_data)
 
-        # Notifs / “non lu”
         channel_notifs[channel_name] = True
         channel_seen_latest[channel_name] = False
 
         renpy.restart_interaction()
 
-        # --- Historique Ren'Py (pour log / rollback) ---
         if message_kind == 0:
             narrator.add_history(kind="adv", who=sender, what=message_text)
         elif message_kind == 1:
@@ -241,9 +229,9 @@ init python:
                                  who=sender,
                                  what="Sent a photo.")
 
+        save_messenger_to_persistent()
         renpy.checkpoint()
 
-        # Pause éventuelle après le message
         if do_pause and phone_config["pause"]["do_pause"]:
             if phone_config["pause"]["pause_time"]:
                 renpy.pause(phone_config["pause"]["pause_length"])
@@ -372,30 +360,8 @@ init python:
             Args:
                 channel_name (str): The unique ID of the channel to get the preview for.
         """
-        if channel_name in phone_channels and phone_channels[channel_name]:
-            for last_message_tuple in reversed(phone_channels[channel_name]):
-                if last_message_tuple[3] != 1:  # skip message_kind=1 (index is now 3)
-                    summary_alt = last_message_tuple[5] if len(last_message_tuple) > 5 else None
-                    if summary_alt and summary_alt != "none":
-                        return summary_alt
-                    sender = last_message_tuple[1]
-                    message_text = last_message_tuple[2]
-                    message_kind = last_message_tuple[3]
-                    preview_text = message_text
-                    if message_kind == 3: # has emojis, get rid of them with fire
-                        preview_text = re.sub(r"<[^>]+>", "", preview_text).strip()
-                    # prepend sender if it's a group chat and not from the player
-                    is_group = phone_channel_data.get(channel_name, {}).get("is_group", False)
-                    if is_group and sender != phone_config["phone_player_name"]:
-                        full_preview = "{}: {}".format(sender, preview_text)
-                    else:
-                        full_preview = preview_text
-                    max_len = phone_config.get("preview_max_length", 35)
-                    if len(full_preview) > max_len:
-                        # Slice it to make room for the "..."
-                        return full_preview[:max_len - 3] + "..."
-                    else:
-                        return full_preview
+        if channel_name in messenger_conversations:
+            return messenger_preview(channel_name)
         return phone_config["preview_no_message"]
 
     # force the user to go to a certain channel (can also be channel_list)
@@ -690,244 +656,6 @@ screen Phonescreen():
     use phone_navbar
 
 #---------------------------- Messenger ----------------------------------------
-
-screen app_messenger():
-    modal True
-
-    frame:
-        xfill True
-        yfill True
-        #background app_body_bg()
-
-        use app_header("Messenger", "messenger")
-
-        vbox:
-            xfill True
-            yfill True
-
-            # CORPS DE L'APP
-            frame:
-                background app_body_bg()
-                xfill True
-                yfill True
-                padding (30, 30, 30, 140)  # on laisse de la place pour la nav bar en bas
-
-                if current_app == "messenger":
-                    # --- LISTE DES CONVERSATIONS ---
-                    viewport:
-                        draggable True
-                        mousewheel True
-                        xfill True
-                        yfill True
-                        scrollbars "vertical"
-
-                        vbox:
-                            spacing 15
-                            xfill True
-
-                            $ visible_channels = [ch for ch in phone_channel_data.keys() if channel_visible.get(ch, True)]
-                            python:
-                                if phone_config["sort_channels_by_latest"]:
-                                    messenger_to_display = sorted(visible_channels, key=lambda ch_name: channel_latest_global_id.get(ch_name, 0), reverse=True)
-                                else:
-                                    messenger_to_display = visible_channels
-
-                            for channel_name in messenger_to_display:
-                                button:
-                                    xfill True
-                                    action [
-                                        SetDict(channel_notifs, channel_name, False),
-                                        SetVariable("current_app", channel_name)
-                                    ]
-                                    background "#0000"
-                                    hover_background "#ffffff20"
-
-                                    # --- DESCRIPTIONS DES CONVERSATIONS ---
-                                    vbox:
-                                        # icon, name, chat last message, and notification
-                                        hbox:
-                                            #  icon
-                                            spacing 10
-                                            add phone_channel_data[channel_name]["icon"]:
-                                                xysize (50, 50)
-                                                yalign 0.5
-                                            # name and preview message
-                                            vbox:
-                                                $ name_color = "#111111" if not dark_mode else "#FFFFFF"
-                                                $ preview_color = "#333333" if not dark_mode else "#DDDDDD"
-
-                                                text phone_channel_data[channel_name]["display_name"]:
-                                                    style "phone_channel_name_style"
-                                                    color name_color
-
-                                                text get_channel_preview(channel_name):
-                                                    style "phone_channel_preview_style"
-                                                    color preview_color
-
-                                            # notification dot if the channel has one
-                                            if channel_notifs.get(channel_name, False):
-                                                frame:
-                                                    background "#ff4444"
-                                                    xsize 12
-                                                    ysize 12
-                                                    xalign 1.0
-                                                    yalign 0.5
-                                                    xoffset -5
-                                                    yoffset 5
-                                                    padding (0, 0, 0, 0)
-                                        # add a line below every channel
-                                        null height 10
-                                        frame:
-                                            background "#ffffff40"
-                                            xfill True
-                                            ysize 1
-                else:
-                    # --- CHAT DANS UNE CONVERSATION ---
-                    $ yadj = ui.adjustment()
-
-                    viewport:
-                        id "message_viewport"
-                        xfill True
-                        yfill True
-                        yadjustment yadj
-                        scrollbars "vertical"
-                        mousewheel True
-                        draggable False
-
-                        # do this once when it opens
-                        #if phone_config["auto_scroll"]:
-                            #$ yadj.value = (yadj.range + 1000)
-                        vbox:
-                            spacing 8
-                            xfill True
-
-                            if current_app in phone_channels:
-
-                                $ latest_channel_id = channel_last_message_id.get(current_app, 0)
-                                $ last_sender_in_chat_view = None
-
-                                # display all messages
-                                for message_data in phone_channels[current_app]:
-                                    $ msg_id, sender, message_text, message_kind, current_global_id, summary_alt, image_x, image_y = message_data
-
-                                    # bulle et couleur selon MC / autre
-                                    if sender == phone_config["phone_player_name"]:
-                                        $ bubble_image = "gui/bubble_mc.png"
-                                        $ text_colour = "#FFFFFF"
-                                        $ msg_align = 1.0
-                                    else:
-                                        $ bubble_image = "gui/bubble_other.png"
-                                        $ text_colour = "#FFFFFF"
-                                        $ msg_align = 0.0
-
-                                    #$ msg_padding = phone_config["message_padding"]
-
-#                                    # displaying the sender's name for group chats
-#                                    $ is_group_chat = phone_channel_data[current_app]["is_group"]
-#                                    if is_group_chat and sender != phone_config["phone_player_name"] and sender != last_sender_in_chat_view:
-#                                        text sender:
-#                                            style "phone_sender_name_style"
-#                                            xalign msg_padding
-#                                            xoffset 5
-
-                                    # now make the message bubble for text
-#                                    if message_kind == 0:
-#                                        frame:
-#                                            if sender == phone_config["phone_player_name"]:
-#                                                xpos 1.0 - msg_padding xanchor 1.0
-#                                            else:
-#                                                xpos msg_padding xanchor 0.0
-#                                            background Frame(bubble_image, 23, 23)
-#                                            padding (15, 10)
-#                                            xmaximum 360
-#                                            if msg_id == latest_channel_id and not channel_seen_latest[current_app]:
-#                                                at message_appear(anim_direction)
-#                                                $ channel_seen_latest[current_app] = True
-#                                                $ channel_notifs[current_app] = False
-#                                                if phone_config["auto_scroll"]:
-#                                                    $ yadj.value = (yadj.range + 1000)
-#                                            text message_text:
-#                                                color text_colour
-#                                                size phone_config["message_font_size"]
-#                                                layout "tex"
-#                                        $ last_sender_in_chat_view = sender
-#                                    elif message_kind == 1:
-
-                                    # timestamp
-                                    if message_kind == 1:
-                                        null height 15
-                                        hbox:
-                                            xalign 0.5
-                                            xmaximum 360
-                                            text message_text:
-                                                color "#AAAAAA"
-                                                size phone_config["timestamp_font_size"]
-                                        null height 15
-                                        $ last_sender_in_chat_view = None
-
-                                    # photo
-                                    elif message_kind == 2:
-                                        frame:
-                                            xpos msg_align
-                                            xanchor msg_align
-                                            background Frame(bubble_image, 23, 23)
-                                            padding (10, 10)
-                                            xmaximum 360
-
-                                            add Image(message_text) at scale_to_fit(image_x, image_y)
-                                        $ last_sender_in_chat_view = sender
-
-                                    # texte normal ou avec emojis
-                                    else:
-                                        frame:
-                                            xpos msg_align
-                                            xanchor msg_align
-                                            background Frame(bubble_image, 23, 23)
-                                            padding (15, 10)
-                                            xmaximum 360
-
-                                            text message_text:
-                                                color text_colour
-                                                size phone_config["message_font_size"]
-                                                layout "tex"
-                                        $ last_sender_in_chat_view = sender
-
-                            else:
-                                $ empty_color = "#222222" if not dark_mode else "#DDDDDD"
-
-                                text "Aucun message dans cette conversation.":
-                                    size 22
-                                    color empty_color
-
-
-                            # if there's a choice
-                            if phone_choice_options and phone_choice_channel == current_app:
-                                null height 20
-                                vbox:
-                                    xalign 0.5
-                                    spacing 8
-
-                                    for i, (preview_text, actual_message, action) in enumerate(phone_choice_options):
-                                        $ message_to_send = actual_message if actual_message is not None else preview_text
-                                        textbutton preview_text: #at choice_appear(delay = i * 0.1):
-                                            action [
-                                                SetVariable("phone_choice_options", []),
-                                                SetVariable("phone_choice_channel", None),
-                                                SetVariable("disable_phone_menu_switch", False),
-                                                Function(send_phone_message, sender=phone_config["phone_player_name"], message_text=message_to_send, channel_name=current_app, do_pause=False),
-                                                If(action is not None, action),
-                                                Return()
-                                            ]
-                                            background Frame("gui/bubble_mc.png", 23, 23)
-                                            text_color "#FFFFFF"
-                                            text_size phone_config["choice_font_size"]
-                                            text_align 0.5
-                                            xalign 0.5
-                                            padding (15, 10)
-
-                            # add a bit of extra padding to the bottom of the viewport
-                            null height 30
-
 
 #---------------------------- Gallery ----------------------------------------
 

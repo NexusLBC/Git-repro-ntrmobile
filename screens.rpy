@@ -1464,6 +1464,220 @@ style nvl_button_text:
 ## Mobile Variants
 ################################################################################
 
+#---------------------------- Messenger ----------------------------------------
+
+screen app_messenger():
+    modal True
+
+    $ load_messenger_from_persistent()
+
+    frame:
+        xfill True
+        yfill True
+
+        use app_header("Messenger", "messenger")
+
+        vbox:
+            xfill True
+            yfill True
+
+            frame:
+                background app_body_bg()
+                xfill True
+                yfill True
+                padding (30, 30, 30, 140)
+
+                if messenger_view == "list":
+                    use messenger_contact_list()
+                elif messenger_current_conversation:
+                    use messenger_conversation_view(contact_id=messenger_current_conversation)
+                else:
+                    use messenger_contact_list()
+
+
+screen messenger_contact_list():
+    $ visible_contacts = [c for c in messenger_contacts.values() if channel_visible.get(c["id"], True)]
+    $ sorted_contacts = sorted(visible_contacts, key=lambda c: channel_latest_global_id.get(c["id"], 0), reverse=True)
+
+    if not sorted_contacts:
+        $ empty_color = "#222222" if not dark_mode else "#DDDDDD"
+        text "Aucun contact." color empty_color size 24 xalign 0.5 yalign 0.5
+    else:
+        viewport:
+            draggable True
+            mousewheel True
+            xfill True
+            yfill True
+            scrollbars "vertical"
+
+            vbox:
+                spacing 15
+                xfill True
+
+                for contact in sorted_contacts:
+                    $ contact_id = contact["id"]
+                    button:
+                        xfill True
+                        action [
+                            SetDict(channel_notifs, contact_id, False),
+                            Function(set_messenger_conversation, contact_id),
+                            SetVariable("current_app", "messenger"),
+                        ]
+                        background "#0000"
+                        hover_background "#ffffff20"
+
+                        hbox:
+                            spacing 12
+                            add contact["avatar"]:
+                                xysize (60, 60)
+                                yalign 0.5
+
+                            vbox:
+                                $ name_color = "#111111" if not dark_mode else "#FFFFFF"
+                                $ preview_color = "#333333" if not dark_mode else "#DDDDDD"
+
+                                text contact["name"]:
+                                    style "phone_channel_name_style"
+                                    color name_color
+
+                                text messenger_preview(contact_id):
+                                    style "phone_channel_preview_style"
+                                    color preview_color
+
+                            if channel_notifs.get(contact_id, False):
+                                frame:
+                                    background "#ff4444"
+                                    xsize 12
+                                    ysize 12
+                                    xalign 1.0
+                                    yalign 0.5
+                                    xoffset -5
+                                    yoffset 5
+                                    padding (0, 0, 0, 0)
+
+                        null height 10
+                        frame:
+                            background "#ffffff40"
+                            xfill True
+                            ysize 1
+
+
+screen messenger_conversation_view(contact_id):
+    $ conversation = messenger_visible_messages(contact_id)
+    $ total_messages = len(messenger_conversations.get(contact_id, []))
+    $ loaded = messenger_loaded_counts.get(contact_id, MESSENGER_PAGE_SIZE)
+    $ has_more = loaded < total_messages
+    $ last_sender = None
+
+    vbox:
+        spacing 12
+        xfill True
+        yfill True
+
+        hbox:
+            spacing 20
+            textbutton "Retour" action Function(messenger_back_to_list)
+            text messenger_contacts.get(contact_id, {}).get("name", contact_id):
+                style "phone_channel_name_style"
+
+        if has_more:
+            textbutton "Charger plus" action Function(messenger_load_more, contact_id)
+
+        viewport:
+            draggable True
+            mousewheel True
+            xfill True
+            yfill True
+            scrollbars "vertical"
+
+            vbox:
+                spacing 12
+                xfill True
+
+                if conversation:
+                    for message in conversation:
+                        $ sender = message.get("sender")
+                        $ is_mc = sender == phone_config["phone_player_name"]
+                        $ bubble_image = "gui/bubble_mc.png" if is_mc else "gui/bubble_other.png"
+                        $ text_colour = "#FFFFFF"
+                        $ msg_align = 1.0 if is_mc else 0.0
+
+                        if sender != last_sender and message.get("kind") != "timestamp":
+                            hbox:
+                                spacing 10
+                                xalign msg_align
+                                if not is_mc:
+                                    add messenger_contacts.get(contact_id, {}).get("avatar", "gui/buttons/messenger_idle.png"):
+                                        xysize (50, 50)
+                                else:
+                                    add messenger_contacts.get(phone_config["phone_player_name"], {}).get("avatar", "gui/buttons/messenger_idle.png"):
+                                        xysize (50, 50)
+                                text sender:
+                                    style "phone_sender_name_style"
+
+                        if message.get("kind") == "timestamp":
+                            null height 10
+                            hbox:
+                                xalign 0.5
+                                xmaximum 360
+                                text message.get("text", ""):
+                                    color "#AAAAAA"
+                                    size phone_config["timestamp_font_size"]
+                            null height 10
+                        elif message.get("kind") == "image":
+                            frame:
+                                xpos msg_align
+                                xanchor msg_align
+                                background Frame(bubble_image, 23, 23)
+                                padding (10, 10)
+                                xmaximum 360
+
+                                add Image(message.get("text")) at scale_to_fit(*message.get("image_size", (320, 320)))
+                        else:
+                            frame:
+                                xpos msg_align
+                                xanchor msg_align
+                                background Frame(bubble_image, 23, 23)
+                                padding (15, 10)
+                                xmaximum 360
+
+                                text message.get("text", ""):
+                                    color text_colour
+                                    size phone_config["message_font_size"]
+                                    layout "tex"
+
+                        $ last_sender = sender
+                else:
+                    $ empty_color = "#222222" if not dark_mode else "#DDDDDD"
+                    text "Aucun message dans cette conversation." color empty_color size 22
+
+                if phone_choice_options and phone_choice_channel == contact_id:
+                    null height 20
+                    vbox:
+                        xalign 0.5
+                        spacing 8
+
+                        for i, (preview_text, actual_message, action) in enumerate(phone_choice_options):
+                            $ message_to_send = actual_message if actual_message is not None else preview_text
+                            textbutton preview_text:
+                                action [
+                                    SetVariable("phone_choice_options", []),
+                                    SetVariable("phone_choice_channel", None),
+                                    SetVariable("disable_phone_menu_switch", False),
+                                    Function(send_phone_message, sender=phone_config["phone_player_name"], message_text=message_to_send, channel_name=contact_id, do_pause=False),
+                                    If(action is not None, action),
+                                    Return(),
+                                ]
+                                background Frame("gui/bubble_mc.png", 23, 23)
+                                text_color "#FFFFFF"
+                                text_size phone_config["choice_font_size"]
+                                text_align 0.5
+                                xalign 0.5
+                                padding (15, 10)
+
+                null height 30
+
+
 style pref_vbox:
     variant "medium"
     xsize 675
