@@ -79,8 +79,6 @@ init python:
 
     # ------------------------- Phone Config ---------------------------------------
 
-    import re
-
     # configurable variables for easy plug-and-play
     phone_config = {
         # Sound Configuration
@@ -135,18 +133,6 @@ init python:
     _phone_global_message_counter = 0  # latest global message counter
 
     # ------------------------- Variables 2 ------------------------------------
-
-    # replace inline images natively
-    def replace_emojis(text):
-        """ Replaces custom emoji tags like <emoji_name> with Ren'Py image tags.
-            This is an internal helper function to allow for easy emoji syntax in messages.
-            Args:
-                text (str): The message text that might contain emoji tags.
-        """
-        def sub(match):
-            name = match.group(1)
-            return "{image=%s}" % name
-        return re.sub(r"<([A-Za-z0-9_]+)>", sub, text)
 
     # creates a new phone channel
     def create_phone_channel(channel_id, display_name, participants, icon_path, is_group=False):
