@@ -415,30 +415,40 @@ init python:
                 channel_name (str): The unique ID of the channel to get the preview for.
         """
         if channel_name in phone_channels and phone_channels[channel_name]:
-            for last_message_tuple in reversed(phone_channels[channel_name]):
-                if last_message_tuple[3] != 1:  # skip message_kind=1 (index is now 3)
-                    summary_alt = last_message_tuple[5] if len(last_message_tuple) > 5 else None
-                    if summary_alt and summary_alt != "none":
-                        return summary_alt
-                    sender = last_message_tuple[1]
-                    message_text = last_message_tuple[2]
-                    message_kind = last_message_tuple[3]
-                    preview_text = message_text
-                    if message_kind == 3: # has emojis, get rid of them with fire
-                        preview_text = re.sub(r"<[^>]+>", "", preview_text).strip()
-                    # prepend sender if it's a group chat and not from the player
-                    is_group = phone_channel_data.get(channel_name, {}).get("is_group", False)
-                    if is_group and sender != phone_config["phone_player_name"]:
-                        full_preview = "{}: {}".format(sender, preview_text)
-                    else:
-                        full_preview = preview_text
-                    max_len = phone_config.get("preview_max_length", 35)
-                    if len(full_preview) > max_len:
-                        # Slice it to make room for the "..."
-                        return full_preview[:max_len - 3] + "..."
-                    else:
-                        return full_preview
-        return phone_config["empty_channel_message"]
+            last_message_tuple = None
+            if channel_notifs.get(channel_name, False):
+                for candidate in reversed(phone_channels[channel_name]):
+                    if candidate[3] != 1 and candidate[1] != phone_config["phone_player_name"]:
+                        last_message_tuple = candidate
+                        break
+            if last_message_tuple is None:
+                for candidate in reversed(phone_channels[channel_name]):
+                    if candidate[3] != 1:
+                        last_message_tuple = candidate
+                        break
+            if last_message_tuple:
+                summary_alt = last_message_tuple[5] if len(last_message_tuple) > 5 else None
+                if summary_alt and summary_alt != "none":
+                    return summary_alt
+                sender = last_message_tuple[1]
+                message_text = last_message_tuple[2]
+                message_kind = last_message_tuple[3]
+                preview_text = message_text
+                if message_kind == 3: # has emojis, get rid of them with fire
+                    preview_text = re.sub(r"<[^>]+>", "", preview_text).strip()
+                # prepend sender if it's a group chat and not from the player
+                is_group = phone_channel_data.get(channel_name, {}).get("is_group", False)
+                if is_group and sender != phone_config["phone_player_name"]:
+                    full_preview = "{}: {}".format(sender, preview_text)
+                else:
+                    full_preview = preview_text
+                max_len = phone_config.get("preview_max_length", 35)
+                if len(full_preview) > max_len:
+                    # Slice it to make room for the "..."
+                    return full_preview[:max_len - 3] + "..."
+                else:
+                    return full_preview
+        return phone_config["preview_no_message"]
 
     # force the user to go to a certain channel (can also be channel_list)
     def switch_channel_view(channel_name):
@@ -567,7 +577,7 @@ style phone_channel_button_style is button:
     ypadding 8
 
 style phone_channel_name_style is default:
-    size 22
+    size 24
     bold True
 
 style phone_channel_preview_style is default:
