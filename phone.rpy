@@ -634,6 +634,7 @@ screen app_header(title, app_id, icon_path=None):
 
         $ header_title = phone_app_title(title, app_id)
         $ can_go_back = current_app != "home"
+        $ header_icon_final = icon_path if icon_path is not None else phone_config.get("default_icon", None)
 
         hbox:
             xfill True
@@ -641,15 +642,21 @@ screen app_header(title, app_id, icon_path=None):
             spacing 30
             #padding (20, 20)
 
-            textbutton "◀":
-                xminimum 80
-                action Function(phone_back)
-                sensitive can_go_back and not disable_phone_menu_switch
+            if can_go_back:
+                imagebutton:
+                    idle "gui/back.png"
+                    hover "gui/back.png"
+                    xalign 0.5
+                    yalign 0.5
+                    action Function(phone_back)
+                    sensitive not disable_phone_menu_switch
+            else:
+                null width 80
 
             hbox:
                 spacing 12
-                if icon_path is not None:
-                    add icon_path:
+                if header_icon_final is not None:
+                    add header_icon_final:
                         xysize (64, 64)
                         yalign 0.5
                 text header_title:
@@ -752,7 +759,7 @@ screen app_messenger():
             $ header_icon = None
         else:
             $ header_title = phone_channel_data.get(current_app, {}).get("display_name", "Messenger")
-            $ header_icon = phone_channel_data.get(current_app, {}).get("icon", None)
+            $ header_icon = phone_channel_data.get(current_app, {}).get("icon", phone_config.get("default_icon", None))
         use app_header(header_title, "messenger", header_icon)
 
 
