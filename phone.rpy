@@ -6,6 +6,7 @@ default current_app = "home"
 default phone_nav_stack = []
 default lock_done = False
 default phone_mode = False
+default phone_choice_armed = False
 
 init python:
     import re
@@ -35,6 +36,7 @@ init python:
 
     def open_phone_channel(channel_name):
         """Open a messenger channel while keeping navigation history."""
+        store.phone_choice_armed = False
         set_active_app(channel_name, add_history=True)
 
     def phone_back():
@@ -135,7 +137,7 @@ init python:
         "play_sound_receive": True,
         "no_sound_current_chat": False, # For incoming messages, only play if not viewing the chat
         # String Configurations
-        "empty_channel_message": "Empty chat...",
+        "preview_no_message": "Empty chat...",
         "channels_title": "Messages",
         "history_timestamp_prefix": "Time:",
         "phone_player_name": "Me",
@@ -153,7 +155,7 @@ init python:
         "character_colour": "#000000",
         "timestamp_colour": "#000000",
         "sort_channels_by_latest": True,
-        "message_padding": 0.025,
+        "message_align": 0.025,
         "preview_max_length": 25,
         "emojis": {
             "size": 32,
@@ -259,8 +261,12 @@ init python:
         phone_channels[channel_name].append(message_data)
 
         # Notifs / “non lu”
-        channel_notifs[channel_name] = True
-        channel_seen_latest[channel_name] = False
+        if sender != phone_config["phone_player_name"]:
+            channel_notifs[channel_name] = True
+            channel_seen_latest[channel_name] = False
+        else:
+            channel_notifs[channel_name] = False
+            channel_seen_latest[channel_name] = True
 
         renpy.restart_interaction()
 
@@ -393,6 +399,7 @@ init python:
         # choices should be a list of tuples, like:
         # [("Choice Text 1", Jump("response_label_1")), ("Choice Text 2", Jump("response_label_2"))]
         global phone_choice_options, phone_choice_channel
+        store.phone_choice_armed = False
         phone_choice_options = choices
         phone_choice_channel = channel_name
         renpy.ui.interact()  # make the game wait for the user..
@@ -564,14 +571,14 @@ style phone_channel_name_style is default:
     bold True
 
 style phone_channel_preview_style is default:
-    size 18
+    size 20
 
 style phone_message_style is default:
-    size 20
+    size 24
     xalign 0.0
 
 style phone_sender_name_style is default:
-    size 16
+    size 18
     yoffset 2
     ypadding 0
     yalign 1.0
@@ -608,7 +615,7 @@ transform scale_to_fit(maxw, maxh):
     size (maxw, maxh)
     fit "contain"
 
-screen app_header(title, app_id):
+screen app_header(title, app_id, icon_path=None):
 
     frame:
         xfill True
@@ -629,9 +636,15 @@ screen app_header(title, app_id):
                 action Function(phone_back)
                 sensitive can_go_back and not disable_phone_menu_switch
 
-            text header_title:
-                xalign 0.5
-                size 40
+            hbox:
+                spacing 12
+                if icon_path is not None:
+                    add icon_path:
+                        xysize (64, 64)
+                        yalign 0.5
+                text header_title:
+                    xalign 0.5
+                    size 40
 
 screen phone_navbar():
 
@@ -724,7 +737,14 @@ screen app_messenger():
         yfill True
         #background app_body_bg()
 
-        use app_header("Messenger", "messenger")
+        if current_app == "messenger":
+            $ header_title = "Messenger"
+            $ header_icon = None
+        else:
+            $ header_title = phone_channel_data.get(current_app, {}).get("display_name", "Messenger")
+            $ header_icon = phone_channel_data.get(current_app, {}).get("icon", None)
+        use app_header(header_title, "messenger", header_icon)
+
 
         vbox:
             xfill True
@@ -744,7 +764,7 @@ screen app_messenger():
                         mousewheel True
                         xfill True
                         yfill True
-                        scrollbars "vertical"
+                        scrollbars None
 
                         vbox:
                             spacing 15
@@ -766,15 +786,16 @@ screen app_messenger():
                                     ]
                                     background "#0000"
                                     hover_background "#ffffff20"
+                                    padding (18, 14)
 
                                     # --- DESCRIPTIONS DES CONVERSATIONS ---
                                     vbox:
                                         # icon, name, chat last message, and notification
                                         hbox:
                                             #  icon
-                                            spacing 10
+                                            spacing 14
                                             add phone_channel_data[channel_name]["icon"]:
-                                                xysize (50, 50)
+                                                xysize (64, 64)
                                                 yalign 0.5
                                             # name and preview message
                                             vbox:
@@ -801,7 +822,7 @@ screen app_messenger():
                                                     yoffset 5
                                                     padding (0, 0, 0, 0)
                                         # add a line below every channel
-                                        null height 10
+                                        null height 14
                                         frame:
                                             background "#ffffff40"
                                             xfill True
@@ -815,13 +836,13 @@ screen app_messenger():
                         xfill True
                         yfill True
                         yadjustment yadj
-                        scrollbars "vertical"
+                        scrollbars None
                         mousewheel True
-                        draggable False
+                        draggable True
 
                         # do this once when it opens
-                        #if phone_config["auto_scroll"]:
-                            #$ yadj.value = (yadj.range + 1000)
+                        if phone_config["auto_scroll"]:
+                            $ yadj.value = (yadj.range + 1000)
                         vbox:
                             spacing 8
                             xfill True
@@ -830,39 +851,60 @@ screen app_messenger():
 
                                 $ latest_channel_id = channel_last_message_id.get(current_app, 0)
                                 $ last_sender_in_chat_view = None
+                                $ mc_avatar_path = "gui/mc.png" if renpy.loadable("gui/mc.png") else None
 
                                 # display all messages
                                 for message_data in phone_channels[current_app]:
                                     $ msg_id, sender, message_text, message_kind, current_global_id, summary_alt, image_x, image_y = message_data
 
                                     # bulle et couleur selon MC / autre
-                                    if sender == phone_config["phone_player_name"]:
-                                        $ bubble_image = "gui/bubble_mc.png"
+                                    $ is_player_message = sender == phone_config["phone_player_name"]
+                                    if is_player_message:
+                                        $ msg_frame = "gui/send_frame.png"
                                         $ text_colour = "#FFFFFF"
                                         $ anim_direction = 1
                                     else:
-                                        $ bubble_image = "gui/bubble_other.png"
+                                        $ msg_frame = "gui/received_frame.png"
                                         $ text_colour = "#FFFFFF"
                                         $ anim_direction = -1
 
-                                    $ msg_padding = phone_config["message_padding"]
+                                    $ msg_align = phone_config["message_align"]
+                                    $ header_icon = phone_channel_data[current_app]["icon"] if not is_player_message else mc_avatar_path
+                                    $ header_align = 1.0 - msg_align if is_player_message else msg_align
+                                    $ name_colour = "#f2f2f2" if is_player_message else ("#111111" if not dark_mode else "#FFFFFF")
+
+                                    if message_kind in (0, 2, 3) and sender != last_sender_in_chat_view:
+                                        hbox:
+                                            xalign header_align
+                                            if is_player_message:
+                                                xanchor 1.0
+                                            else:
+                                                xanchor 0.0
+                                            spacing 8
+                                            if header_icon:
+                                                add header_icon:
+                                                    xysize (40, 40)
+                                                    yalign 0.5
+                                            text sender:
+                                                style "phone_sender_name_style"
+                                                color name_colour
 
 #                                    # displaying the sender's name for group chats
 #                                    $ is_group_chat = phone_channel_data[current_app]["is_group"]
 #                                    if is_group_chat and sender != phone_config["phone_player_name"] and sender != last_sender_in_chat_view:
 #                                        text sender:
 #                                            style "phone_sender_name_style"
-#                                            xalign msg_padding
+#                                            xalign msg_align
 #                                            xoffset 5
 
                                     # normal message : kind = 0
                                     if message_kind == 0:
                                         frame:
-                                            if sender == phone_config["phone_player_name"]:
-                                                xpos 1.0 - msg_padding xanchor 1.0
+                                            if is_player_message:
+                                                xpos 1.0 - msg_align xanchor 1.0
                                             else:
-                                                xpos msg_padding xanchor 0.0
-                                            background Frame(bubble_image, 23, 23)
+                                                xpos msg_align xanchor 0.0
+                                            background Frame(msg_frame, 23, 23)
                                             padding (15, 10)
                                             xmaximum 360
                                             if msg_id == latest_channel_id and not channel_seen_latest[current_app]:
@@ -876,9 +918,9 @@ screen app_messenger():
                                                 size phone_config["message_font_size"]
                                                 layout "tex"
                                         $ last_sender_in_chat_view = sender
+
                                     # timestamp kind = 1
-                                    elif message_kind == 1:
-                                    #if message_kind == 1:
+                                    elif message_kind == 1:             
                                         null height 15
                                         hbox:
                                             xalign 0.5
@@ -892,9 +934,11 @@ screen app_messenger():
                                     # photo kind = 2
                                     elif message_kind == 2:
                                         frame:
-                                            xpos msg_align
-                                            xanchor msg_align
-                                            background Frame(bubble_image, 23, 23)
+                                            if is_player_message:
+                                                xpos 1.0 - msg_align xanchor 1.0
+                                            else:
+                                                xpos msg_align xanchor 0.0
+                                            background Frame(msg_frame, 23, 23)
                                             padding (10, 10)
                                             xmaximum 360
 
@@ -902,11 +946,13 @@ screen app_messenger():
                                         $ last_sender_in_chat_view = sender
 
                                     # texte avec emojis kind = 3
-                                    else:
+                                    elif message_kind == 3:
                                         frame:
-                                            xpos msg_align
-                                            xanchor msg_align
-                                            background Frame(bubble_image, 23, 23)
+                                            if is_player_message:
+                                                xpos 1.0 - msg_align xanchor 1.0
+                                            else:
+                                                xpos msg_align xanchor 0.0
+                                            background Frame(msg_frame, 23, 23)
                                             padding (15, 10)
                                             xmaximum 360
 
@@ -930,11 +976,14 @@ screen app_messenger():
                                 vbox:
                                     xalign 0.5
                                     spacing 8
+                                    if not phone_choice_armed:
+                                        timer 0.15 action SetVariable("phone_choice_armed", True)
 
                                     for i, (preview_text, actual_message, action) in enumerate(phone_choice_options):
                                         $ message_to_send = actual_message if actual_message is not None else preview_text
                                         textbutton preview_text: #at choice_appear(delay = i * 0.1):
                                             action [
+                                                SetVariable("phone_choice_armed", False),
                                                 SetVariable("phone_choice_options", []),
                                                 SetVariable("phone_choice_channel", None),
                                                 SetVariable("disable_phone_menu_switch", False),
@@ -942,7 +991,8 @@ screen app_messenger():
                                                 If(action is not None, action),
                                                 Return()
                                             ]
-                                            background Frame("gui/bubble_mc.png", 23, 23)
+                                            sensitive phone_choice_armed
+                                            background Frame("gui/send_frame.png", 23, 23)
                                             text_color "#FFFFFF"
                                             text_size phone_config["choice_font_size"]
                                             text_align 0.5
