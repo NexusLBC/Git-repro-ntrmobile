@@ -135,7 +135,7 @@ init python:
         "play_sound_receive": True,
         "no_sound_current_chat": False, # For incoming messages, only play if not viewing the chat
         # String Configurations
-        "preview_no_message": "Empty chat...",
+        "empty_channel_message": "Empty chat...",
         "channels_title": "Messages",
         "history_timestamp_prefix": "Time:",
         "phone_player_name": "Me",
@@ -431,7 +431,7 @@ init python:
                         return full_preview[:max_len - 3] + "..."
                     else:
                         return full_preview
-        return phone_config["preview_no_message"]
+        return phone_config["empty_channel_message"]
 
     # force the user to go to a certain channel (can also be channel_list)
     def switch_channel_view(channel_name):
@@ -442,8 +442,8 @@ init python:
                 channel_name (str): The unique ID of the channel to switch to. Can also be
                     "channel_list" to return to the main message list.
         """
-        global current_phone_view, channel_notifs, channel_seen_latest
-        current_phone_view = channel_name
+        global current_app, channel_notifs, channel_seen_latest
+        current_app = channel_name
         channel_notifs[channel_name] = False
         channel_seen_latest[channel_name] = True
         renpy.restart_interaction()
@@ -481,7 +481,7 @@ init python:
             Args:
                 channel_name (str): The unique ID of the channel to delete.
         """
-        global phone_channel_data, phone_channels, channel_last_message_id, channel_seen_latest, channel_notifs, channel_visible, channel_latest_global_id, current_phone_view
+        global phone_channel_data, phone_channels, channel_last_message_id, channel_seen_latest, channel_notifs, channel_visible, channel_latest_global_id, current_app
         if channel_name in phone_channel_data:
             del phone_channel_data[channel_name]
         if channel_name in phone_channels:
@@ -497,7 +497,7 @@ init python:
         if channel_name in channel_latest_global_id:
             del channel_latest_global_id[channel_name]
         # make sure they aren't viewing a dead chat
-        if current_phone_view == channel_name:
+        if current_app == channel_name:
             switch_channel_view("channel_list")
         renpy.restart_interaction()
 
@@ -545,7 +545,7 @@ init python:
     # same as above, but ignore the active channel (for instance, used to change the back icon)
     def has_any_notification_not_active():
         """Checks if any channel OTHER than the current one has an active notification."""
-        return any(has_notif for channel, has_notif in channel_notifs.items() if channel != current_phone_view)
+        return any(has_notif for channel, has_notif in channel_notifs.items() if channel != current_app)
 
 # ---------- Styles du système de messagerie (sans thèmes) ----------
 
@@ -845,7 +845,7 @@ screen app_messenger():
                                         $ text_colour = "#FFFFFF"
                                         $ anim_direction = -1
 
-                                    #$ msg_padding = phone_config["message_padding"]
+                                    $ msg_padding = phone_config["message_padding"]
 
 #                                    # displaying the sender's name for group chats
 #                                    $ is_group_chat = phone_channel_data[current_app]["is_group"]
@@ -876,10 +876,9 @@ screen app_messenger():
                                                 size phone_config["message_font_size"]
                                                 layout "tex"
                                         $ last_sender_in_chat_view = sender
-                                    elif message_kind == 1:
-
                                     # timestamp kind = 1
-                                    if message_kind == 1:
+                                    elif message_kind == 1:
+                                    #if message_kind == 1:
                                         null height 15
                                         hbox:
                                             xalign 0.5
