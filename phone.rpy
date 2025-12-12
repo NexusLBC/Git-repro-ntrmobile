@@ -245,23 +245,6 @@ init python:
                 if phone_config.get("play_sound_receive", False):
                     renpy.sound.play("audio/phone/receive.mp3", channel="sound")
 
-    def phone_queue_message(message_data, channel_name):
-        if channel_name not in store.phone_pending:
-            store.phone_pending[channel_name] = []
-        store.phone_pending[channel_name].append(message_data)
-
-    def phone_reveal_next(channel_name):
-        if channel_name not in store.phone_pending:
-            return
-        if not store.phone_pending[channel_name]:
-            return
-
-        msg = store.phone_pending[channel_name].pop(0)
-        store.phone_channels[channel_name].append(msg)
-
-        # Quand on révèle un message, on force le refresh UI
-        renpy.restart_interaction()
-
         # --- Gestion des IDs / ordres des messages ---
         _phone_global_message_counter += 1
         current_global_id = _phone_global_message_counter
@@ -271,7 +254,6 @@ init python:
         current_id = last_id + 1
         channel_last_message_id[channel_name] = current_id
 
-        # Stockage du message
         message_data = (
             current_id,
             sender,
@@ -280,21 +262,57 @@ init python:
             current_global_id,
             summary_alt,
             image_x,
-            image_y
+            image_y,
+            do_pause,
         )
+
+        # Notifs / “non lu” pour les messages entrants, même en attente
+        if sender != phone_config["phone_player_name"]:
+            channel_notifs[channel_name] = True
+            channel_seen_latest[channel_name] = False
+        else:
+            channel_notifs[channel_name] = False
+            channel_seen_latest[channel_name] = True
 
         # Si le chat n'est pas ouvert, on met en attente (pending)
         if store.current_app != channel_name:
+            phone_queue_message(message_data, channel_name)
+            renpy.restart_interaction()
+            return
 
-            # Exception: le tout premier message reçu d'une convo part tout seul
-            if sender != phone_config["phone_player_name"] and not phone_channels[channel_name]:
-                phone_channels[channel_name].append(message_data)
-            else:
-                phone_queue_message(message_data, channel_name)
+        _deliver_phone_message(message_data, channel_name)
 
-        else:
-            phone_channels[channel_name].append(message_data)
+    def phone_queue_message(message_data, channel_name):
+        if channel_name not in store.phone_pending:
+            store.phone_pending[channel_name] = []
+        store.phone_pending[channel_name].append(message_data)
 
+    def _deliver_phone_message(message_data, channel_name):
+        msg_id, sender, message_text, message_kind, current_global_id, summary_alt, image_x, image_y, do_pause = message_data
+
+        # Quand on révèle un message, on force le refresh UI
+        renpy.restart_interaction()
+
+        channel_latest_global_id[channel_name] = max(
+            channel_latest_global_id.get(channel_name, 0), current_global_id
+        )
+
+        channel_last_message_id[channel_name] = max(
+            channel_last_message_id.get(channel_name, 0), msg_id
+        )
+
+        phone_channels[channel_name].append(
+            (
+                msg_id,
+                sender,
+                message_text,
+                message_kind,
+                current_global_id,
+                summary_alt,
+                image_x,
+                image_y,
+            )
+        )
 
         # Notifs / “non lu”
         if sender != phone_config["phone_player_name"]:
@@ -326,6 +344,15 @@ init python:
                 renpy.pause(phone_config["pause"]["pause_length"])
             else:
                 renpy.pause()
+
+    def phone_reveal_next(channel_name):
+        if channel_name not in store.phone_pending:
+            return
+        if not store.phone_pending[channel_name]:
+            return
+
+        msg = store.phone_pending[channel_name].pop(0)
+        _deliver_phone_message(msg, channel_name)
 
 
     # basically clear notifs / mark as read for all
