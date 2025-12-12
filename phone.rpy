@@ -243,6 +243,23 @@ init python:
                 if phone_config.get("play_sound_receive", False):
                     renpy.sound.play("audio/phone/receive.mp3", channel="sound")
 
+    def phone_queue_message(message_data, channel_name):
+        if channel_name not in store.phone_pending:
+            store.phone_pending[channel_name] = []
+        store.phone_pending[channel_name].append(message_data)
+
+    def phone_reveal_next(channel_name):
+        if channel_name not in store.phone_pending:
+            return
+        if not store.phone_pending[channel_name]:
+            return
+
+        msg = store.phone_pending[channel_name].pop(0)
+        store.phone_channels[channel_name].append(msg)
+
+        # Quand on révèle un message, on force le refresh UI
+        renpy.restart_interaction()
+
         # --- Gestion des IDs / ordres des messages ---
         _phone_global_message_counter += 1
         current_global_id = _phone_global_message_counter
@@ -263,30 +280,12 @@ init python:
             image_x,
             image_y
         )
+
         # Si le chat n'est pas actuellement ouvert, on met en attente (pending)
         if store.current_app != channel_name:
             phone_queue_message(message_data, channel_name)
         else:
             phone_channels[channel_name].append(message_data)
-
-
-        def phone_queue_message(message_data, channel_name):
-            if channel_name not in store.phone_pending:
-                store.phone_pending[channel_name] = []
-            store.phone_pending[channel_name].append(message_data)
-
-        def phone_reveal_next(channel_name):
-            if channel_name not in store.phone_pending:
-                return
-            if not store.phone_pending[channel_name]:
-                return
-
-            msg = store.phone_pending[channel_name].pop(0)
-            store.phone_channels[channel_name].append(msg)
-
-            # Quand on révèle un message, on force le refresh UI
-            renpy.restart_interaction()
-
 
         # Notifs / “non lu”
         if sender != phone_config["phone_player_name"]:
