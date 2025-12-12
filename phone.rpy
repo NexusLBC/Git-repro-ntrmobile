@@ -853,7 +853,7 @@ screen Phonescreen():
 
 #---------------------------- Messenger ----------------------------------------
 
-screen app_messenger():
+screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
     modal True
 
     frame:
@@ -983,7 +983,7 @@ screen app_messenger():
                                 action Function(phone_reveal_next, current_app)
 
                             # AUTO MODE : révèle automatiquement les messages en attente
-                            if phone_chat_auto_advance and current_app in phone_pending and phone_pending[current_app]:
+                            if auto_timer_enabled and phone_chat_auto_advance and current_app in phone_pending and phone_pending[current_app]:
                                 timer phone_chat_auto_delay action Function(phone_reveal_next, current_app)
                         
                             vbox:
