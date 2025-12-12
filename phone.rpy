@@ -150,7 +150,7 @@ init python:
         "timestamp_font_size": 20,
         "auto_scroll": True,
         "show_sender_in_preview": True,
-        "default_icon": "phone/icon.png",
+        "default_icon": "gui/icon.png",
         "user_colour": "#FFFFFF",
         "character_colour": "#000000",
         "timestamp_colour": "#000000",
@@ -760,12 +760,13 @@ screen app_messenger():
         else:
             $ header_title = phone_channel_data.get(current_app, {}).get("display_name", "Messenger")
             $ header_icon = phone_channel_data.get(current_app, {}).get("icon", phone_config.get("default_icon", None))
-        use app_header(header_title, "messenger", header_icon)
-
 
         vbox:
             xfill True
             yfill True
+
+            # Header adaptatif
+            use app_header(phone_channel_data[current_app]["display_name"] if current_app in phone_channels else "Messenger","messenger")
 
             # CORPS DE L'APP
             frame:
@@ -888,7 +889,7 @@ screen app_messenger():
                                     $ msg_align = phone_config["message_align"]
                                     $ header_icon = phone_channel_data[current_app]["icon"] if not is_player_message else mc_avatar_path
                                     $ header_align = 1.0 - msg_align if is_player_message else msg_align
-                                    $ name_colour = "#f2f2f2" if is_player_message else ("#111111" if not dark_mode else "#FFFFFF")
+                                    $ name_colour = "#053ffd" if is_player_message else ("#111111" if not dark_mode else "#FFFFFF")
 
                                     if message_kind in (0, 2, 3) and sender != last_sender_in_chat_view:
                                         hbox:
