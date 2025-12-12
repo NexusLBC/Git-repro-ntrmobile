@@ -7,6 +7,9 @@ default phone_nav_stack = []
 default lock_done = False
 default phone_mode = False
 default phone_choice_armed = False
+default phone_chat_auto_advance = False
+default phone_chat_auto_delay = 0.8
+
 
 init python:
     import re
@@ -182,6 +185,8 @@ init python:
     phone_choice_channel = None  # this holds the channel that the above choice aligns to (one at a time)
     channel_latest_global_id = {} # latest global channel id
     _phone_global_message_counter = 0  # latest global message counter
+    phone_pending = {}  # {channel_name: [message_data, ...]}
+
 
     # ------------------------- Variables 2 ------------------------------------
 
@@ -258,7 +263,30 @@ init python:
             image_x,
             image_y
         )
-        phone_channels[channel_name].append(message_data)
+        # Si le chat n'est pas actuellement ouvert, on met en attente (pending)
+        if store.current_app != channel_name:
+            phone_queue_message(message_data, channel_name)
+        else:
+            phone_channels[channel_name].append(message_data)
+
+
+        def phone_queue_message(message_data, channel_name):
+            if channel_name not in store.phone_pending:
+                store.phone_pending[channel_name] = []
+            store.phone_pending[channel_name].append(message_data)
+
+        def phone_reveal_next(channel_name):
+            if channel_name not in store.phone_pending:
+                return
+            if not store.phone_pending[channel_name]:
+                return
+
+            msg = store.phone_pending[channel_name].pop(0)
+            store.phone_channels[channel_name].append(msg)
+
+            # Quand on révèle un message, on force le refresh UI
+            renpy.restart_interaction()
+
 
         # Notifs / “non lu”
         if sender != phone_config["phone_player_name"]:
@@ -634,7 +662,6 @@ screen app_header(title, app_id, icon_path=None):
 
         $ header_title = phone_app_title(title, app_id)
         $ can_go_back = current_app != "home"
-        $ header_icon_final = icon_path if icon_path is not None else phone_config.get("default_icon", None)
 
         hbox:
             xfill True
@@ -655,8 +682,8 @@ screen app_header(title, app_id, icon_path=None):
 
             hbox:
                 spacing 12
-                if header_icon_final is not None:
-                    add header_icon_final:
+                if icon_path is not None:
+                    add icon_path:
                         xysize (64, 64)
                         yalign 0.5
                 text header_title:
@@ -759,7 +786,7 @@ screen app_messenger():
             $ header_icon = None
         else:
             $ header_title = phone_channel_data.get(current_app, {}).get("display_name", "Messenger")
-            $ header_icon = phone_channel_data.get(current_app, {}).get("icon", phone_config.get("default_icon", None))
+            $ header_icon = phone_channel_data.get(current_app, {}).get("icon", None)
 
         vbox:
             xfill True
@@ -783,6 +810,22 @@ screen app_messenger():
                         xfill True
                         yfill True
                         scrollbars None
+
+                        fixed:
+                            xfill True
+                            yfill True
+
+                            # Zone cliquable = corps du chat (header/nav sont hors viewport)
+                            button:
+                                xfill True
+                                yfill True
+                                background None
+                                hover_background None
+                                action Function(phone_reveal_next, current_app)
+
+                            # AUTO MODE : révèle automatiquement les messages en attente
+                            if phone_chat_auto_advance and current_app in phone_pending and phone_pending[current_app]:
+                                timer phone_chat_auto_delay action Function(phone_reveal_next, current_app)
 
                         vbox:
                             spacing 15
@@ -869,7 +912,7 @@ screen app_messenger():
 
                                 $ latest_channel_id = channel_last_message_id.get(current_app, 0)
                                 $ last_sender_in_chat_view = None
-                                $ mc_avatar_path = "gui/mc.png" if renpy.loadable("gui/mc.png") else None
+                                $ mc_avatar_path = "avatars/mc_icon.png" if renpy.loadable("avatars/mc_icon.png") else None
 
                                 # display all messages
                                 for message_data in phone_channels[current_app]:
@@ -1188,6 +1231,18 @@ screen app_settings():
                         text_selected_color selected_text_color
                         background None
                         selected_background selected_bg_color
+
+                vbox:
+                    style_prefix "check"
+                    label _("Messenger")
+                    textbutton _("Auto-advance chat messages"):
+                        action ToggleVariable("phone_chat_auto_advance", True, False)
+                        selected phone_chat_auto_advance
+                        text_color text_color
+                        text_selected_color selected_text_color
+                        background None
+                        selected_background selected_bg_color
+
 
                 null height 200
 
