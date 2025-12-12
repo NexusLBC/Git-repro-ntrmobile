@@ -248,8 +248,6 @@ init python:
         # --- Gestion des IDs / ordres des messages ---
         _phone_global_message_counter += 1
         current_global_id = _phone_global_message_counter
-        channel_latest_global_id[channel_name] = current_global_id
-
         last_id = channel_last_message_id.get(channel_name, 0)
         current_id = last_id + 1
         channel_last_message_id[channel_name] = current_id
@@ -265,14 +263,6 @@ init python:
             image_y,
             do_pause,
         )
-
-        # Notifs / “non lu” pour les messages entrants, même en attente
-        if sender != phone_config["phone_player_name"]:
-            channel_notifs[channel_name] = True
-            channel_seen_latest[channel_name] = False
-        else:
-            channel_notifs[channel_name] = False
-            channel_seen_latest[channel_name] = True
 
         # Si le chat n'est pas ouvert, on met en attente (pending)
         if store.current_app != channel_name:
@@ -314,7 +304,7 @@ init python:
             )
         )
 
-        # Notifs / “non lu”
+        # Notifs / “non lu” uniquement pour les messages révélés
         if sender != phone_config["phone_player_name"]:
             channel_notifs[channel_name] = True
             channel_seen_latest[channel_name] = False
