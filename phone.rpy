@@ -5,6 +5,7 @@ default dark_mode = False
 default current_app = "home"
 default phone_nav_stack = []
 default lock_done = False
+default phone_intro_done = False
 default phone_mode = False
 default phone_choice_armed = False
 default phone_chat_auto_advance = False
@@ -186,6 +187,7 @@ init python:
     channel_latest_global_id = {} # latest global channel id
     _phone_global_message_counter = 0  # latest global message counter
     phone_pending = {}  # {channel_name: [message_data, ...]}
+    phone_intro_done = False
 
 
     # ------------------------- Variables 2 ------------------------------------
@@ -359,11 +361,25 @@ init python:
         channel_visible = {}
         channel_latest_global_id = {}
         _phone_global_message_counter = 0
+        store.phone_intro_done = False
 
         # aucun salon créé ici
         #create_phone_channel("maya_dm", "Maya", ["Maya", phone_config["phone_player_name"]], "avatars/maya_icon.png")
 
         renpy.restart_interaction()
+
+    def initialize_phone_intro():
+        """Prepare the default phone content when the phone is first unlocked."""
+        if store.phone_intro_done:
+            return
+
+        create_phone_channel("maya_dm", "Maya", ["Maya", phone_config["phone_player_name"]], "avatars/maya_icon.png")
+        create_phone_channel("elias_dm", "Elias", ["Elias", phone_config["phone_player_name"]], "avatars/elias_icon.png")
+
+        send_phone_message("Maya", "Salut, tu vois ce message ?", "maya_dm", do_pause=False)
+        send_phone_message(phone_config["phone_player_name"], "Oui, je te lis.", "maya_dm", do_pause=False)
+
+        store.phone_intro_done = True
 
 
     # pause the text messages for a certain length
@@ -746,6 +762,10 @@ label Phone:
     return
 
 screen Phonescreen():
+
+    if lock_done and not phone_intro_done:
+        python:
+            initialize_phone_intro()
 
     if current_app =="home":
 
