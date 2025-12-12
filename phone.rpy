@@ -281,11 +281,18 @@ init python:
             image_y
         )
 
-        # Si le chat n'est pas actuellement ouvert, on met en attente (pending)
+        # Si le chat n'est pas ouvert, on met en attente (pending)
         if store.current_app != channel_name:
-            phone_queue_message(message_data, channel_name)
+
+            # Exception: le tout premier message reçu d'une convo part tout seul
+            if sender != phone_config["phone_player_name"] and not phone_channels[channel_name]:
+                phone_channels[channel_name].append(message_data)
+            else:
+                phone_queue_message(message_data, channel_name)
+
         else:
             phone_channels[channel_name].append(message_data)
+
 
         # Notifs / “non lu”
         if sender != phone_config["phone_player_name"]:
@@ -810,22 +817,6 @@ screen app_messenger():
                         yfill True
                         scrollbars None
 
-                        fixed:
-                            xfill True
-                            yfill True
-
-                            # Zone cliquable = corps du chat (header/nav sont hors viewport)
-                            button:
-                                xfill True
-                                yfill True
-                                background None
-                                hover_background None
-                                action Function(phone_reveal_next, current_app)
-
-                            # AUTO MODE : révèle automatiquement les messages en attente
-                            if phone_chat_auto_advance and current_app in phone_pending and phone_pending[current_app]:
-                                timer phone_chat_auto_delay action Function(phone_reveal_next, current_app)
-
                         vbox:
                             spacing 15
                             xfill True
@@ -903,164 +894,182 @@ screen app_messenger():
                         # do this once when it opens
                         if phone_config["auto_scroll"]:
                             $ yadj.value = (yadj.range + 1000)
-                        vbox:
-                            spacing 8
+
+
+                        fixed:
                             xfill True
+                            yfill True
 
-                            if current_app in phone_channels:
+                            # Zone cliquable = corps du chat (header/nav sont hors viewport)
+                            button:
+                                xfill True
+                                yfill True
+                                background None
+                                hover_background None
+                                action Function(phone_reveal_next, current_app)
 
-                                $ latest_channel_id = channel_last_message_id.get(current_app, 0)
-                                $ last_sender_in_chat_view = None
-                                $ mc_avatar_path = "avatars/mc_icon.png" if renpy.loadable("avatars/mc_icon.png") else None
+                            # AUTO MODE : révèle automatiquement les messages en attente
+                            if phone_chat_auto_advance and current_app in phone_pending and phone_pending[current_app]:
+                                timer phone_chat_auto_delay action Function(phone_reveal_next, current_app)
+                        
+                            vbox:
+                                spacing 8
+                                xfill True
 
-                                # display all messages
-                                for message_data in phone_channels[current_app]:
-                                    $ msg_id, sender, message_text, message_kind, current_global_id, summary_alt, image_x, image_y = message_data
+                                if current_app in phone_channels:
 
-                                    # bulle et couleur selon MC / autre
-                                    $ is_player_message = sender == phone_config["phone_player_name"]
-                                    if is_player_message:
-                                        $ msg_frame = "gui/send_frame.png"
-                                        $ text_colour = "#FFFFFF"
-                                        $ anim_direction = 1
-                                    else:
-                                        $ msg_frame = "gui/received_frame.png"
-                                        $ text_colour = "#FFFFFF"
-                                        $ anim_direction = -1
+                                    $ latest_channel_id = channel_last_message_id.get(current_app, 0)
+                                    $ last_sender_in_chat_view = None
+                                    $ mc_avatar_path = "avatars/mc_icon.png" if renpy.loadable("avatars/mc_icon.png") else None
 
-                                    $ msg_align = phone_config["message_align"]
-                                    $ header_icon = phone_channel_data[current_app]["icon"] if not is_player_message else mc_avatar_path
-                                    $ header_align = 1.0 - msg_align if is_player_message else msg_align
-                                    $ name_colour = "#053ffd" if is_player_message else ("#111111" if not dark_mode else "#FFFFFF")
+                                    # display all messages
+                                    for message_data in phone_channels[current_app]:
+                                        $ msg_id, sender, message_text, message_kind, current_global_id, summary_alt, image_x, image_y = message_data
 
-                                    if message_kind in (0, 2, 3) and sender != last_sender_in_chat_view:
-                                        hbox:
-                                            xalign header_align
-                                            if is_player_message:
-                                                xanchor 1.0
-                                            else:
-                                                xanchor 0.0
-                                            spacing 8
-                                            if header_icon:
-                                                add header_icon:
-                                                    xysize (40, 40)
-                                                    yalign 0.5
-                                            text sender:
-                                                style "phone_sender_name_style"
-                                                color name_colour
+                                        # bulle et couleur selon MC / autre
+                                        $ is_player_message = sender == phone_config["phone_player_name"]
+                                        if is_player_message:
+                                            $ msg_frame = "gui/send_frame.png"
+                                            $ text_colour = "#FFFFFF"
+                                            $ anim_direction = 1
+                                        else:
+                                            $ msg_frame = "gui/received_frame.png"
+                                            $ text_colour = "#FFFFFF"
+                                            $ anim_direction = -1
 
-#                                    # displaying the sender's name for group chats
-#                                    $ is_group_chat = phone_channel_data[current_app]["is_group"]
-#                                    if is_group_chat and sender != phone_config["phone_player_name"] and sender != last_sender_in_chat_view:
-#                                        text sender:
-#                                            style "phone_sender_name_style"
-#                                            xalign msg_align
-#                                            xoffset 5
+                                        $ msg_align = phone_config["message_align"]
+                                        $ header_icon = phone_channel_data[current_app]["icon"] if not is_player_message else mc_avatar_path
+                                        $ header_align = 1.0 - msg_align if is_player_message else msg_align
+                                        $ name_colour = "#053ffd" if is_player_message else ("#111111" if not dark_mode else "#FFFFFF")
 
-                                    # normal message : kind = 0
-                                    if message_kind == 0:
-                                        frame:
-                                            if is_player_message:
-                                                xpos 1.0 - msg_align xanchor 1.0
-                                            else:
-                                                xpos msg_align xanchor 0.0
-                                            background Frame(msg_frame, 23, 23)
-                                            padding (15, 10)
-                                            xmaximum 360
-                                            if msg_id == latest_channel_id and not channel_seen_latest[current_app]:
-                                                at message_appear(anim_direction)
-                                                $ channel_seen_latest[current_app] = True
-                                                $ channel_notifs[current_app] = False
-                                                if phone_config["auto_scroll"]:
-                                                    $ yadj.value = (yadj.range + 1000)
-                                            text message_text:
-                                                color text_colour
-                                                size phone_config["message_font_size"]
-                                                layout "tex"
-                                        $ last_sender_in_chat_view = sender
+                                        if message_kind in (0, 2, 3) and sender != last_sender_in_chat_view:
+                                            hbox:
+                                                xalign header_align
+                                                if is_player_message:
+                                                    xanchor 1.0
+                                                else:
+                                                    xanchor 0.0
+                                                spacing 8
+                                                if header_icon:
+                                                    add header_icon:
+                                                        xysize (40, 40)
+                                                        yalign 0.5
+                                                text sender:
+                                                    style "phone_sender_name_style"
+                                                    color name_colour
 
-                                    # timestamp kind = 1
-                                    elif message_kind == 1:             
-                                        null height 15
-                                        hbox:
-                                            xalign 0.5
-                                            xmaximum 360
-                                            text message_text:
-                                                color "#AAAAAA"
-                                                size phone_config["timestamp_font_size"]
-                                        null height 15
-                                        $ last_sender_in_chat_view = None
+    #                                    # displaying the sender's name for group chats
+    #                                    $ is_group_chat = phone_channel_data[current_app]["is_group"]
+    #                                    if is_group_chat and sender != phone_config["phone_player_name"] and sender != last_sender_in_chat_view:
+    #                                        text sender:
+    #                                            style "phone_sender_name_style"
+    #                                            xalign msg_align
+    #                                            xoffset 5
 
-                                    # photo kind = 2
-                                    elif message_kind == 2:
-                                        frame:
-                                            if is_player_message:
-                                                xpos 1.0 - msg_align xanchor 1.0
-                                            else:
-                                                xpos msg_align xanchor 0.0
-                                            background Frame(msg_frame, 23, 23)
-                                            padding (10, 10)
-                                            xmaximum 360
+                                        # normal message : kind = 0
+                                        if message_kind == 0:
+                                            frame:
+                                                if is_player_message:
+                                                    xpos 1.0 - msg_align xanchor 1.0
+                                                else:
+                                                    xpos msg_align xanchor 0.0
+                                                background Frame(msg_frame, 23, 23)
+                                                padding (15, 10)
+                                                xmaximum 360
+                                                if msg_id == latest_channel_id and not channel_seen_latest[current_app]:
+                                                    at message_appear(anim_direction)
+                                                    $ channel_seen_latest[current_app] = True
+                                                    $ channel_notifs[current_app] = False
+                                                    if phone_config["auto_scroll"]:
+                                                        $ yadj.value = (yadj.range + 1000)
+                                                text message_text:
+                                                    color text_colour
+                                                    size phone_config["message_font_size"]
+                                                    layout "tex"
+                                            $ last_sender_in_chat_view = sender
 
-                                            add Image(message_text) at scale_to_fit(image_x, image_y)
-                                        $ last_sender_in_chat_view = sender
+                                        # timestamp kind = 1
+                                        elif message_kind == 1:             
+                                            null height 15
+                                            hbox:
+                                                xalign 0.5
+                                                xmaximum 360
+                                                text message_text:
+                                                    color "#AAAAAA"
+                                                    size phone_config["timestamp_font_size"]
+                                            null height 15
+                                            $ last_sender_in_chat_view = None
 
-                                    # texte avec emojis kind = 3
-                                    elif message_kind == 3:
-                                        frame:
-                                            if is_player_message:
-                                                xpos 1.0 - msg_align xanchor 1.0
-                                            else:
-                                                xpos msg_align xanchor 0.0
-                                            background Frame(msg_frame, 23, 23)
-                                            padding (15, 10)
-                                            xmaximum 360
+                                        # photo kind = 2
+                                        elif message_kind == 2:
+                                            frame:
+                                                if is_player_message:
+                                                    xpos 1.0 - msg_align xanchor 1.0
+                                                else:
+                                                    xpos msg_align xanchor 0.0
+                                                background Frame(msg_frame, 23, 23)
+                                                padding (10, 10)
+                                                xmaximum 360
 
-                                            text message_text:
-                                                color text_colour
-                                                size phone_config["message_font_size"]
-                                                layout "tex"
-                                        $ last_sender_in_chat_view = sender
+                                                add Image(message_text) at scale_to_fit(image_x, image_y)
+                                            $ last_sender_in_chat_view = sender
 
-                            else:
-                                $ empty_color = "#222222" if not dark_mode else "#DDDDDD"
+                                        # texte avec emojis kind = 3
+                                        elif message_kind == 3:
+                                            frame:
+                                                if is_player_message:
+                                                    xpos 1.0 - msg_align xanchor 1.0
+                                                else:
+                                                    xpos msg_align xanchor 0.0
+                                                background Frame(msg_frame, 23, 23)
+                                                padding (15, 10)
+                                                xmaximum 360
 
-                                text "Aucun message dans cette conversation.":
-                                    size 22
-                                    color empty_color
+                                                text message_text:
+                                                    color text_colour
+                                                    size phone_config["message_font_size"]
+                                                    layout "tex"
+                                            $ last_sender_in_chat_view = sender
+
+                                else:
+                                    $ empty_color = "#222222" if not dark_mode else "#DDDDDD"
+
+                                    text "Aucun message dans cette conversation.":
+                                        size 22
+                                        color empty_color
 
 
-                            # if there's a choice
-                            if phone_choice_options and phone_choice_channel == current_app:
-                                null height 20
-                                vbox:
-                                    xalign 0.5
-                                    spacing 8
-                                    if not phone_choice_armed:
-                                        timer 0.15 action SetVariable("phone_choice_armed", True)
+                                # if there's a choice
+                                if phone_choice_options and phone_choice_channel == current_app:
+                                    null height 20
+                                    vbox:
+                                        xalign 0.5
+                                        spacing 8
+                                        if not phone_choice_armed:
+                                            timer 0.15 action SetVariable("phone_choice_armed", True)
 
-                                    for i, (preview_text, actual_message, action) in enumerate(phone_choice_options):
-                                        $ message_to_send = actual_message if actual_message is not None else preview_text
-                                        textbutton preview_text: #at choice_appear(delay = i * 0.1):
-                                            action [
-                                                SetVariable("phone_choice_armed", False),
-                                                SetVariable("phone_choice_options", []),
-                                                SetVariable("phone_choice_channel", None),
-                                                SetVariable("disable_phone_menu_switch", False),
-                                                Function(send_phone_message, sender=phone_config["phone_player_name"], message_text=message_to_send, channel_name=current_app, do_pause=False),
-                                                If(action is not None, action),
-                                                Return()
-                                            ]
-                                            sensitive phone_choice_armed
-                                            background Frame("gui/send_frame.png", 23, 23)
-                                            text_color "#FFFFFF"
-                                            text_size phone_config["choice_font_size"]
-                                            text_align 0.5
-                                            xalign 0.5
-                                            padding (15, 10)
+                                        for i, (preview_text, actual_message, action) in enumerate(phone_choice_options):
+                                            $ message_to_send = actual_message if actual_message is not None else preview_text
+                                            textbutton preview_text: #at choice_appear(delay = i * 0.1):
+                                                action [
+                                                    SetVariable("phone_choice_armed", False),
+                                                    SetVariable("phone_choice_options", []),
+                                                    SetVariable("phone_choice_channel", None),
+                                                    SetVariable("disable_phone_menu_switch", False),
+                                                    Function(send_phone_message, sender=phone_config["phone_player_name"], message_text=message_to_send, channel_name=current_app, do_pause=False),
+                                                    If(action is not None, action),
+                                                    Return()
+                                                ]
+                                                sensitive phone_choice_armed
+                                                background Frame("gui/send_frame.png", 23, 23)
+                                                text_color "#FFFFFF"
+                                                text_size phone_config["choice_font_size"]
+                                                text_align 0.5
+                                                xalign 0.5
+                                                padding (15, 10)
 
-                            # add a bit of extra padding to the bottom of the viewport
-                            null height 30
+                                # add a bit of extra padding to the bottom of the viewport
+                                null height 30
 
 
 #---------------------------- Gallery ----------------------------------------
