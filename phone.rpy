@@ -370,14 +370,41 @@ init python:
 
     def initialize_phone_intro():
         """Prepare the default phone content when the phone is first unlocked."""
+        global _phone_global_message_counter
+
         if store.phone_intro_done:
             return
 
-        create_phone_channel("maya_dm", "Maya", ["Maya", phone_config["phone_player_name"]], "avatars/maya_icon.png")
+        if "maya_dm" not in phone_channel_data:
+            create_phone_channel("maya_dm", "Maya", ["Maya", phone_config["phone_player_name"]], "avatars/maya_icon.png")
+
         create_phone_channel("elias_dm", "Elias", ["Elias", phone_config["phone_player_name"]], "avatars/elias_icon.png")
 
-        send_phone_message("Maya", "Salut, tu vois ce message ?", "maya_dm", do_pause=False)
-        send_phone_message(phone_config["phone_player_name"], "Oui, je te lis.", "maya_dm", do_pause=False)
+        # Inject the welcome message directly so it shows as unread on first detection.
+        if not phone_channels.get("maya_dm"):
+            _phone_global_message_counter += 1
+            current_global_id = _phone_global_message_counter
+
+            last_id = channel_last_message_id.get("maya_dm", 0) + 1
+            channel_last_message_id["maya_dm"] = last_id
+            channel_latest_global_id["maya_dm"] = current_global_id
+            channel_notifs["maya_dm"] = True
+            channel_seen_latest["maya_dm"] = False
+
+            phone_channels["maya_dm"].append(
+                (
+                    last_id,
+                    "Maya",
+                    "Salut, tu vois ce message ?",
+                    0,
+                    current_global_id,
+                    "none",
+                    320,
+                    320,
+                )
+            )
+
+            renpy.restart_interaction()
 
         store.phone_intro_done = True
 
