@@ -10,6 +10,7 @@ default phone_mode = False
 default phone_choice_armed = False
 default phone_chat_auto_advance = False
 default phone_chat_auto_delay = 0.8
+default phone_last_revealed_sender = {}
 
 
 init python:
@@ -42,6 +43,18 @@ init python:
         """Open a messenger channel while keeping navigation history."""
         store.phone_choice_armed = False
         set_active_app(channel_name, add_history=True)
+
+        last_sender = None
+
+        if channel_name in store.phone_channels:
+            for message_data in reversed(store.phone_channels[channel_name]):
+                _, sender, _, message_kind, *_ = message_data
+
+                if message_kind != 1:
+                    last_sender = sender
+                    break
+
+        store.phone_last_revealed_sender[channel_name] = last_sender
 
     def phone_back():
         if store.disable_phone_menu_switch:
@@ -344,6 +357,35 @@ init python:
         msg = store.phone_pending[channel_name].pop(0)
         _deliver_phone_message(msg, channel_name)
 
+        _, sender, _, message_kind, *_ = msg
+
+        if message_kind != 1:
+            store.phone_last_revealed_sender[channel_name] = sender
+
+
+    def phone_next_pending_sender(channel_name):
+        pending_messages = store.phone_pending.get(channel_name, [])
+
+        for message_data in pending_messages:
+            _, sender, _, message_kind, *_ = message_data
+
+            if message_kind != 1:
+                return sender
+
+        return None
+
+
+    def phone_should_auto_advance(channel_name):
+        next_sender = phone_next_pending_sender(channel_name)
+
+        return (
+            store.phone_chat_auto_advance
+            and channel_name in store.phone_pending
+            and store.phone_pending[channel_name]
+            and next_sender is not None
+            and next_sender == store.phone_last_revealed_sender.get(channel_name, None)
+        )
+
 
     # basically clear notifs / mark as read for all
     def clear_notifications():
@@ -379,6 +421,7 @@ init python:
         channel_latest_global_id = {}
         _phone_global_message_counter = 0
         store.phone_intro_done = False
+        store.phone_last_revealed_sender = {}
 
         # aucun salon créé ici
         #create_phone_channel("maya_dm", "Maya", ["Maya", phone_config["phone_player_name"]], "avatars/maya_icon.png")
@@ -973,7 +1016,7 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                                 action Function(phone_reveal_next, current_app)
 
                             # AUTO MODE : révèle automatiquement les messages en attente
-                            if auto_timer_enabled and phone_chat_auto_advance and current_app in phone_pending and phone_pending[current_app]:
+                            if auto_timer_enabled and phone_should_auto_advance(current_app):
                                 timer phone_chat_auto_delay action Function(phone_reveal_next, current_app)
                         
                             vbox:
