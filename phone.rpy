@@ -11,6 +11,7 @@ default phone_choice_armed = False
 default phone_chat_auto_advance = False
 default phone_chat_auto_delay = 0.8
 default phone_last_revealed_sender = {}
+default phone_animated_global_ids = {}
 
 
 init python:
@@ -217,6 +218,7 @@ init python:
                 is_group (bool, optional): Set to True if this is a group chat. Defaults to False.
         """
         global phone_channel_data, phone_channels, channel_last_message_id, channel_notifs, channel_seen_latest, channel_visible
+        global phone_animated_global_ids
         if channel_id not in phone_channel_data:
             phone_channel_data[channel_id] = {
                 "display_name": display_name,
@@ -230,6 +232,7 @@ init python:
             channel_seen_latest[channel_id] = True
             channel_visible[channel_id] = True
             channel_latest_global_id[channel_id] = 0
+            phone_animated_global_ids[channel_id] = []
 
     # add messages to a channel in the phone (kind 0 = normal message, kind 1 = timestamp, kind 2 = photo, kind 3 = has emojis)
         # add messages to a channel in the phone
@@ -411,6 +414,7 @@ init python:
         global phone_channel_data, phone_channels
         global channel_last_message_id, channel_notifs, channel_seen_latest
         global channel_visible, channel_latest_global_id, _phone_global_message_counter
+        global phone_animated_global_ids
 
         phone_channel_data = {}
         phone_channels = {}
@@ -419,6 +423,7 @@ init python:
         channel_seen_latest = {}
         channel_visible = {}
         channel_latest_global_id = {}
+        phone_animated_global_ids = {}
         _phone_global_message_counter = 0
         store.phone_intro_done = False
         store.phone_last_revealed_sender = {}
@@ -1033,6 +1038,20 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                                     for message_data in phone_channels[current_app]:
                                         $ msg_id, sender, message_text, message_kind, current_global_id, summary_alt, image_x, image_y = message_data
 
+                                        if current_app not in phone_animated_global_ids:
+                                            $ phone_animated_global_ids[current_app] = []
+
+                                        $ should_animate = False
+                                        if message_kind in (0, 2, 3) and current_global_id not in phone_animated_global_ids[current_app]:
+                                            $ should_animate = True
+                                            $ phone_animated_global_ids[current_app].append(current_global_id)
+
+                                            if msg_id == latest_channel_id and not channel_seen_latest[current_app]:
+                                                $ channel_seen_latest[current_app] = True
+                                                $ channel_notifs[current_app] = False
+                                                if phone_config["auto_scroll"]:
+                                                    $ yadj.value = (yadj.range + 1000)
+
                                         # bulle et couleur selon MC / autre
                                         $ is_player_message = sender == phone_config["phone_player_name"]
                                         if is_player_message:
@@ -1083,12 +1102,8 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                                                 background Frame(msg_frame, 23, 23)
                                                 padding (15, 10)
                                                 xmaximum 360
-                                                if msg_id == latest_channel_id and not channel_seen_latest[current_app]:
+                                                if should_animate:
                                                     at message_appear(anim_direction)
-                                                    $ channel_seen_latest[current_app] = True
-                                                    $ channel_notifs[current_app] = False
-                                                    if phone_config["auto_scroll"]:
-                                                        $ yadj.value = (yadj.range + 1000)
                                                 text message_text:
                                                     color text_colour
                                                     size phone_config["message_font_size"]
@@ -1118,6 +1133,9 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                                                 padding (10, 10)
                                                 xmaximum 360
 
+                                                if should_animate:
+                                                    at message_appear(anim_direction)
+
                                                 add Image(message_text) at scale_to_fit(image_x, image_y)
                                             $ last_sender_in_chat_view = sender
 
@@ -1131,6 +1149,9 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                                                 background Frame(msg_frame, 23, 23)
                                                 padding (15, 10)
                                                 xmaximum 360
+
+                                                if should_animate:
+                                                    at message_appear(anim_direction)
 
                                                 text message_text:
                                                     color text_colour
