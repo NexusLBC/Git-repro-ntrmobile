@@ -397,10 +397,10 @@ init python:
         if d.x >= RIGHT_LIMIT - 5:
             store.lock_done = True
             renpy.jump_out_of_context("start")
+            return
 
-        else:
-            # retour à gauche
-            d.snap(LEFT_LIMIT, UNLOCK_Y)
+        # retour à gauche
+        d.snap(LEFT_LIMIT, UNLOCK_Y)
 
 screen main_menu():
 
