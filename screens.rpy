@@ -407,56 +407,55 @@ screen main_menu():
     ## This ensures that any other menu screen is replaced.
     tag menu
 
-    else:
-        $ autosave_candidates = renpy.list_saved_games()
-        $ has_autosave = (renpy.can_load("autosave") or any("autosave" in str(slot) for slot in autosave_candidates))
+    $ autosave_candidates = renpy.list_saved_games()
+    $ has_autosave = (renpy.can_load("autosave") or any("autosave" in str(slot) for slot in autosave_candidates))
 
-        # Fond d'écran de verrouillage
-        add "lock_wallpaper"
+    # Fond d'écran de verrouillage
+    add "lock_wallpaper"
 
-        # Heure du téléphone
-        text format_time(phone_time_minutes):
-            style "lock_time_style"
+    # Heure du téléphone
+    text format_time(phone_time_minutes):
+        style "lock_time_style"
+        xalign 0.5
+        yalign 0.35
+
+    # Zone du slider en bas
+    frame:
+        xalign 0.5
+        yalign 0.85
+        xsize FRAME_WIDTH
+        ysize FRAME_HEIGHT
+        background None
+
+        # Image de la barre de slide
+        add "gui/unlock_slider.png":
+            xpos SLIDER_LEFT
+            ypos SLIDER_TOP
+
+        #Texte par dessus la barre
+        text "Glisser pour déverrouiller" xalign 0.5 yalign 0.5 color "#ffffff" size 32
+
+        # Groupe de drag
+        draggroup:
+
+            # Le bouton que l'on fait glisser
+            drag:
+                draggable True
+                dragged unlock_dragged
+                drag_offscreen limit_unlock
+
+                # Position de départ du bouton dans la barre
+                xpos 0
+                ypos 3
+
+                child "gui/unlock_button.png"
+
+    if has_autosave:
+        textbutton "Continue" style "lock_continue_button":
             xalign 0.5
-            yalign 0.35
-
-        # Zone du slider en bas
-        frame:
-            xalign 0.5
-            yalign 0.85
+            yalign 0.95
             xsize FRAME_WIDTH
-            ysize FRAME_HEIGHT
-            background None
-
-            # Image de la barre de slide
-            add "gui/unlock_slider.png":
-                xpos SLIDER_LEFT
-                ypos SLIDER_TOP
-
-            #Texte par dessus la barre
-            text "Glisser pour déverrouiller" xalign 0.5 yalign 0.5 color "#ffffff" size 32
-
-            # Groupe de drag
-            draggroup:
-
-                # Le bouton que l'on fait glisser
-                drag:
-                    draggable True
-                    dragged unlock_dragged
-                    drag_offscreen limit_unlock
-
-                    # Position de départ du bouton dans la barre
-                    xpos 0
-                    ypos 3
-
-                    child "gui/unlock_button.png"
-
-        if has_autosave:
-            textbutton "Continue" style "lock_continue_button":
-                xalign 0.5
-                yalign 0.95
-                xsize FRAME_WIDTH
-                action Function(renpy.load, "autosave")
+            action Function(renpy.load, "autosave")
 
 
 style main_menu_frame is empty
