@@ -36,23 +36,26 @@ init python:
 
 
     def clamp_phone_chat_auto_delay(value):
+        fallback_delay = getattr(store, "phone_chat_auto_delay", PHONE_CHAT_AUTO_DELAY_MIN)
         try:
             clamped_value = float(value)
         except (TypeError, ValueError):
-            clamped_value = 0.8
+            clamped_value = fallback_delay
 
         min_delay = PHONE_CHAT_AUTO_DELAY_MIN
         max_delay = min(PHONE_CHAT_AUTO_DELAY_MAX, 3.0)
         clamped_value = max(min_delay, min(max_delay, clamped_value))
         # Align to the configured step so the UI and storage stay consistent.
         rounded_steps = round((clamped_value - PHONE_CHAT_AUTO_DELAY_MIN) / PHONE_CHAT_AUTO_DELAY_STEP)
-        return PHONE_CHAT_AUTO_DELAY_MIN + rounded_steps * PHONE_CHAT_AUTO_DELAY_STEP
+        clamped_value = PHONE_CHAT_AUTO_DELAY_MIN + rounded_steps * PHONE_CHAT_AUTO_DELAY_STEP
+        return max(min_delay, min(max_delay, clamped_value))
 
     def clamp_phone_chat_skip_batch(batch_size):
+        fallback_batch = getattr(store, "phone_chat_skip_batch_size", PHONE_CHAT_SKIP_BATCH_DEFAULT)
         try:
             batch_value = int(batch_size)
         except (TypeError, ValueError):
-            return PHONE_CHAT_SKIP_BATCH_DEFAULT
+            batch_value = fallback_batch
 
         return max(PHONE_CHAT_SKIP_BATCH_MIN, min(PHONE_CHAT_SKIP_BATCH_MAX, batch_value))
 
@@ -137,23 +140,27 @@ init python:
         store.current_app = "home"
 
     def load_phone_chat_settings():
-        if not hasattr(persistent, "phone_chat_auto_delay"):
-            persistent.phone_chat_auto_delay = store.phone_chat_auto_delay
-        store.phone_chat_auto_delay = clamp_phone_chat_auto_delay(persistent.phone_chat_auto_delay)
-        persistent.phone_chat_auto_delay = store.phone_chat_auto_delay
+        persistent_obj = getattr(store, "persistent", None)
+        if persistent_obj is None:
+            return
 
-        if not hasattr(persistent, "phone_chat_auto_advance"):
-            persistent.phone_chat_auto_advance = store.phone_chat_auto_advance
-        store.phone_chat_auto_advance = bool(persistent.phone_chat_auto_advance)
+        default_delay = getattr(store, "phone_chat_auto_delay", PHONE_CHAT_AUTO_DELAY_MIN)
+        raw_delay = getattr(persistent_obj, "phone_chat_auto_delay", default_delay)
+        store.phone_chat_auto_delay = clamp_phone_chat_auto_delay(raw_delay)
+        persistent_obj.phone_chat_auto_delay = store.phone_chat_auto_delay
 
-        if not hasattr(persistent, "phone_chat_skip_enabled"):
-            persistent.phone_chat_skip_enabled = store.phone_chat_skip_enabled
-        store.phone_chat_skip_enabled = bool(persistent.phone_chat_skip_enabled)
+        default_auto_advance = getattr(store, "phone_chat_auto_advance", False)
+        store.phone_chat_auto_advance = bool(getattr(persistent_obj, "phone_chat_auto_advance", default_auto_advance))
+        persistent_obj.phone_chat_auto_advance = store.phone_chat_auto_advance
 
-        if not hasattr(persistent, "phone_chat_skip_batch_size"):
-            persistent.phone_chat_skip_batch_size = PHONE_CHAT_SKIP_BATCH_DEFAULT
-        store.phone_chat_skip_batch_size = clamp_phone_chat_skip_batch(persistent.phone_chat_skip_batch_size)
-        persistent.phone_chat_skip_batch_size = store.phone_chat_skip_batch_size
+        default_skip_enabled = getattr(store, "phone_chat_skip_enabled", False)
+        store.phone_chat_skip_enabled = bool(getattr(persistent_obj, "phone_chat_skip_enabled", default_skip_enabled))
+        persistent_obj.phone_chat_skip_enabled = store.phone_chat_skip_enabled
+
+        default_batch_size = getattr(store, "phone_chat_skip_batch_size", PHONE_CHAT_SKIP_BATCH_DEFAULT)
+        raw_batch_size = getattr(persistent_obj, "phone_chat_skip_batch_size", default_batch_size)
+        store.phone_chat_skip_batch_size = clamp_phone_chat_skip_batch(raw_batch_size)
+        persistent_obj.phone_chat_skip_batch_size = store.phone_chat_skip_batch_size
 
     def set_phone_chat_auto_advance(enabled):
         store.phone_chat_auto_advance = enabled
@@ -245,7 +252,8 @@ init python:
 
     ]
 
-    load_phone_chat_settings()
+    if getattr(store, "persistent", None) is not None:
+        load_phone_chat_settings()
 
     # Mapping of app identifiers to their corresponding screens.
     phone_screen_routes = {
