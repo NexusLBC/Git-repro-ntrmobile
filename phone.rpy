@@ -5,86 +5,17 @@ default dark_mode = False
 default current_app = "home"
 default phone_nav_stack = []
 default lock_done = False
-default phone_time_minutes = 8 * 60
 default phone_intro_done = False
 default phone_mode = False
 default phone_choice_armed = False
 default phone_chat_auto_advance = False
 default phone_chat_auto_delay = 0.8
-default phone_chat_skip_enabled = False
-default phone_chat_skip_batch_size = 2
 default phone_last_revealed_sender = {}
-default phone_animated_global_ids = set()
-default phone_deleted_state = {}
-default app_cloud_state = {"feed_items": [], "filters": [], "is_syncing": False}
-default app_social_soft_state = {"grid_items": [], "active_topic": None, "is_loading": False}
-default app_social_hard_state = {"grid_items": [], "active_topic": None, "is_loading": False}
+default phone_animated_global_ids = {}
 
 
 init python:
     import re
-
-    PHONE_FONT_PATH = "gui/HelveticaNeueLTStd-It.otf"
-
-    PHONE_CHAT_AUTO_DELAY_MIN = 0.2
-    PHONE_CHAT_AUTO_DELAY_MAX = 5.0
-    PHONE_CHAT_AUTO_DELAY_STEP = 0.1
-
-    PHONE_CHAT_SKIP_BATCH_MIN = 1
-    PHONE_CHAT_SKIP_BATCH_MAX = 10
-    PHONE_CHAT_SKIP_BATCH_DEFAULT = 2
-
-
-    def clamp_phone_chat_auto_delay(value):
-        fallback_delay = getattr(store, "phone_chat_auto_delay", PHONE_CHAT_AUTO_DELAY_MIN)
-        try:
-            clamped_value = float(value)
-        except (TypeError, ValueError):
-            clamped_value = fallback_delay
-
-        min_delay = PHONE_CHAT_AUTO_DELAY_MIN
-        max_delay = min(PHONE_CHAT_AUTO_DELAY_MAX, 3.0)
-        clamped_value = max(min_delay, min(max_delay, clamped_value))
-        # Align to the configured step so the UI and storage stay consistent.
-        rounded_steps = round((clamped_value - PHONE_CHAT_AUTO_DELAY_MIN) / PHONE_CHAT_AUTO_DELAY_STEP)
-        clamped_value = PHONE_CHAT_AUTO_DELAY_MIN + rounded_steps * PHONE_CHAT_AUTO_DELAY_STEP
-        return max(min_delay, min(max_delay, clamped_value))
-
-    def clamp_phone_chat_skip_batch(batch_size):
-        fallback_batch = getattr(store, "phone_chat_skip_batch_size", PHONE_CHAT_SKIP_BATCH_DEFAULT)
-        try:
-            batch_value = int(batch_size)
-        except (TypeError, ValueError):
-            batch_value = fallback_batch
-
-        return max(PHONE_CHAT_SKIP_BATCH_MIN, min(PHONE_CHAT_SKIP_BATCH_MAX, batch_value))
-
-    def phone_font():
-        if renpy.loadable(PHONE_FONT_PATH):
-            return PHONE_FONT_PATH
-        return gui.text_font
-
-    def format_time(minutes_value):
-        total_minutes = int(minutes_value) % (24 * 60)
-        hours = total_minutes // 60
-        minutes = total_minutes % 60
-        return f"{hours:02d}:{minutes:02d}"
-
-    def format_phone_time(minutes_value):
-        return format_time(minutes_value)
-
-    def set_phone_time(time_string):
-        match = re.match(r"^(\d{1,2}):(\d{2})$", time_string)
-        if not match:
-            return
-
-        hours, minutes = match.groups()
-        hours_i = max(0, min(23, int(hours)))
-        minutes_i = max(0, min(59, int(minutes)))
-        store.phone_time_minutes = hours_i * 60 + minutes_i
-
-    def advance_phone_time(minutes_delta):
-        store.phone_time_minutes = (store.phone_time_minutes + int(minutes_delta)) % (24 * 60)
 
     # ------------------------- Navigation --------------------------------------
 
@@ -139,67 +70,6 @@ init python:
         store.phone_nav_stack = []
         store.current_app = "home"
 
-    def load_phone_chat_settings():
-        persistent_obj = getattr(store, "persistent", None)
-        if persistent_obj is None:
-            return
-
-        default_delay = getattr(store, "phone_chat_auto_delay", PHONE_CHAT_AUTO_DELAY_MIN)
-        raw_delay = getattr(persistent_obj, "phone_chat_auto_delay", default_delay)
-        store.phone_chat_auto_delay = clamp_phone_chat_auto_delay(raw_delay)
-        persistent_obj.phone_chat_auto_delay = store.phone_chat_auto_delay
-
-        default_auto_advance = getattr(store, "phone_chat_auto_advance", False)
-        store.phone_chat_auto_advance = bool(getattr(persistent_obj, "phone_chat_auto_advance", default_auto_advance))
-        persistent_obj.phone_chat_auto_advance = store.phone_chat_auto_advance
-
-        default_skip_enabled = getattr(store, "phone_chat_skip_enabled", False)
-        store.phone_chat_skip_enabled = bool(getattr(persistent_obj, "phone_chat_skip_enabled", default_skip_enabled))
-        persistent_obj.phone_chat_skip_enabled = store.phone_chat_skip_enabled
-
-        default_batch_size = getattr(store, "phone_chat_skip_batch_size", PHONE_CHAT_SKIP_BATCH_DEFAULT)
-        raw_batch_size = getattr(persistent_obj, "phone_chat_skip_batch_size", default_batch_size)
-        store.phone_chat_skip_batch_size = clamp_phone_chat_skip_batch(raw_batch_size)
-        persistent_obj.phone_chat_skip_batch_size = store.phone_chat_skip_batch_size
-
-    def set_phone_chat_auto_advance(enabled):
-        store.phone_chat_auto_advance = enabled
-        persistent.phone_chat_auto_advance = enabled
-        renpy.restart_interaction()
-
-    def set_phone_chat_auto_delay(delay_seconds):
-        clamped_delay = clamp_phone_chat_auto_delay(delay_seconds)
-        store.phone_chat_auto_delay = clamped_delay
-        persistent.phone_chat_auto_delay = clamped_delay
-        renpy.restart_interaction()
-
-    def toggle_phone_chat_auto_advance():
-        set_phone_chat_auto_advance(not store.phone_chat_auto_advance)
-
-    def set_phone_chat_skip_enabled(enabled):
-        store.phone_chat_skip_enabled = enabled
-        persistent.phone_chat_skip_enabled = enabled
-        renpy.restart_interaction()
-
-    def toggle_phone_chat_skip_enabled():
-        set_phone_chat_skip_enabled(not store.phone_chat_skip_enabled)
-
-    def set_phone_chat_skip_batch_size(batch_size):
-        clamped_batch = clamp_phone_chat_skip_batch(batch_size)
-        store.phone_chat_skip_batch_size = clamped_batch
-        persistent.phone_chat_skip_batch_size = clamped_batch
-        renpy.restart_interaction()
-
-    def phone_current_reveal_batch():
-        if store.phone_chat_skip_enabled:
-            return store.phone_chat_skip_batch_size
-        return 1
-
-    def phone_effective_auto_delay():
-        if store.phone_chat_skip_enabled:
-            return max(PHONE_CHAT_AUTO_DELAY_MIN, store.phone_chat_auto_delay * 0.5)
-        return store.phone_chat_auto_delay
-
     def phone_app_title(default_title, app_id):
         if store.current_app in store.phone_channels:
             return store.phone_channel_data[store.current_app]["display_name"]
@@ -218,18 +88,6 @@ init python:
         { # Gallery
             "image": "gui/buttons/gallery_%s.png",
             "action": Function(open_phone_app, "gallery"),
-        },
-        { # Cloud
-            "image": "gui/buttons/cloud_%s.png",
-            "action": Function(open_phone_app, "app_cloud"),
-        },
-        { # Social (soft)
-            "image": "gui/buttons/social_soft_%s.png",
-            "action": Function(open_phone_app, "app_social_soft"),
-        },
-        { # Social (hard)
-            "image": "gui/buttons/social_hard_%s.png",
-            "action": Function(open_phone_app, "app_social_hard"),
         },
         { # Patreon
             "image": "gui/buttons/patreon_%s.png",
@@ -252,18 +110,12 @@ init python:
 
     ]
 
-    if getattr(store, "persistent", None) is not None:
-        load_phone_chat_settings()
-
     # Mapping of app identifiers to their corresponding screens.
     phone_screen_routes = {
         "messenger": "app_messenger",
         "gallery": "app_gallery",
         "saves": "app_saves",
         "settings": "app_settings",
-        "app_cloud": "app_cloud",
-        "app_social_soft": "app_social_soft",
-        "app_social_hard": "app_social_hard",
     }
 
     #------------------------ Style, Couleurs --------------------------------
@@ -273,9 +125,6 @@ init python:
         "gallery":  "#D97B2B",
         "settings": "#4A90E2",
         "saves":    "#6A9C3B",
-        "app_cloud": "#5AA9E6",
-        "app_social_soft": "#9B59B6",
-        "app_social_hard": "#E67E22",
     }
 
     app_colors_dark = {
@@ -283,9 +132,6 @@ init python:
         "gallery":  "#9A4F1A",
         "settings": "#1F3A5F",
         "saves":    "#3F5F24",
-        "app_cloud": "#2D6186",
-        "app_social_soft": "#6C3483",
-        "app_social_hard": "#9C5310",
     }
 
     def app_color(app):
@@ -309,7 +155,7 @@ init python:
         "play_sound_receive": True,
         "no_sound_current_chat": False, # For incoming messages, only play if not viewing the chat
         # String Configurations
-        "preview_no_message": "Empty chat…",
+        "preview_no_message": "Empty chat...",
         "channels_title": "Messages",
         "history_timestamp_prefix": "Time:",
         "phone_player_name": "Me",
@@ -318,11 +164,8 @@ init python:
         "group_left": "{participant} left the group.",
         # UI Configurations
         "message_font_size": 30,
-        "bubble_max_width": 378, # target ~70% of the in-game phone width
-        "message_avatar_size": 64,
         "choice_font_size": 24,
         "timestamp_font_size": 20,
-        "deleted_message_duration": 3,
         "auto_scroll": True,
         "show_sender_in_preview": True,
         "default_icon": "gui/icon.png",
@@ -342,28 +185,6 @@ init python:
             "pause_length": 1.0 # if using pause_time, how long do we wait?
         }
     }
-
-    def _get_deleted_state(channel_name, global_id):
-        channel_state = store.phone_deleted_state.setdefault(channel_name, {})
-        if global_id not in channel_state:
-            channel_state[global_id] = {"visible": True, "revealed_at": None}
-        return channel_state[global_id]
-
-    def mark_deleted_message_revealed(channel_name, global_id):
-        state = _get_deleted_state(channel_name, global_id)
-        state["visible"] = True
-        state["revealed_at"] = renpy.get_game_runtime()
-
-    def hide_deleted_message(channel_name, global_id):
-        state = _get_deleted_state(channel_name, global_id)
-        state["visible"] = False
-        renpy.restart_interaction()
-
-    def toggle_deleted_message(channel_name, global_id):
-        state = _get_deleted_state(channel_name, global_id)
-        state["visible"] = True
-        state["revealed_at"] = renpy.get_game_runtime()
-        renpy.restart_interaction()
 
     # ------------------------- Variables --------------------------------------
 
@@ -397,6 +218,7 @@ init python:
                 is_group (bool, optional): Set to True if this is a group chat. Defaults to False.
         """
         global phone_channel_data, phone_channels, channel_last_message_id, channel_notifs, channel_seen_latest, channel_visible
+        global phone_animated_global_ids
         if channel_id not in phone_channel_data:
             phone_channel_data[channel_id] = {
                 "display_name": display_name,
@@ -410,13 +232,11 @@ init python:
             channel_seen_latest[channel_id] = True
             channel_visible[channel_id] = True
             channel_latest_global_id[channel_id] = 0
+            phone_animated_global_ids[channel_id] = []
 
-    # add messages to a channel in the phone (kind 0 = normal message, kind 1 = timestamp, kind 2 = photo, kind 3 = has emojis,
-    # kind 4 = deletable text)
+    # add messages to a channel in the phone (kind 0 = normal message, kind 1 = timestamp, kind 2 = photo, kind 3 = has emojis)
         # add messages to a channel in the phone
-    # kind 0 = normal message, 1 = timestamp, 2 = photo, 3 = texte avec emojis, 4 = message supprimable
-    PHONE_AUTOSAVE_SLOT_ID = 1
-
+    # kind 0 = normal message, 1 = timestamp, 2 = photo, 3 = texte avec emojis
     def send_phone_message(sender, message_text, channel_name,
         message_kind=0, summary_alt="none",
         image_x=320, image_y=320, do_pause=True):
@@ -487,9 +307,6 @@ init python:
             channel_last_message_id.get(channel_name, 0), msg_id
         )
 
-        if message_kind == 4:
-            mark_deleted_message_revealed(channel_name, current_global_id)
-
         phone_channels[channel_name].append(
             (
                 msg_id,
@@ -524,8 +341,6 @@ init python:
             narrator.add_history(kind="adv",
             who=sender,
             what="Sent a photo.")
-        elif message_kind == 4:
-            narrator.add_history(kind="adv", who=sender, what=message_text)
 
         renpy.checkpoint()
 
@@ -536,14 +351,11 @@ init python:
             else:
                 renpy.pause()
 
-        if config.has_autosave and not renpy.in_rollback():
-            renpy.save(f"auto-{PHONE_AUTOSAVE_SLOT_ID}")
-
     def phone_reveal_next(channel_name):
         if channel_name not in store.phone_pending:
-            return False
+            return
         if not store.phone_pending[channel_name]:
-            return False
+            return
 
         msg = store.phone_pending[channel_name].pop(0)
         _deliver_phone_message(msg, channel_name)
@@ -552,16 +364,6 @@ init python:
 
         if message_kind != 1:
             store.phone_last_revealed_sender[channel_name] = sender
-
-        return True
-
-
-    def phone_reveal_messages(channel_name, count=None):
-        messages_to_reveal = phone_current_reveal_batch() if count is None else count
-
-        for _ in range(messages_to_reveal):
-            if not phone_reveal_next(channel_name):
-                break
 
 
     def phone_next_pending_sender(channel_name):
@@ -584,10 +386,7 @@ init python:
             and channel_name in store.phone_pending
             and store.phone_pending[channel_name]
             and next_sender is not None
-            and (
-                store.phone_last_revealed_sender.get(channel_name, None) is None
-                or next_sender == store.phone_last_revealed_sender.get(channel_name, None)
-            )
+            and next_sender == store.phone_last_revealed_sender.get(channel_name, None)
         )
 
 
@@ -624,7 +423,7 @@ init python:
         channel_seen_latest = {}
         channel_visible = {}
         channel_latest_global_id = {}
-        phone_animated_global_ids = set()
+        phone_animated_global_ids = {}
         _phone_global_message_counter = 0
         store.phone_intro_done = False
         store.phone_last_revealed_sender = {}
@@ -758,19 +557,14 @@ init python:
                 channel_name (str): The unique ID of the channel to get the preview for.
         """
         if channel_name in phone_channels and phone_channels[channel_name]:
-            revealed_messages = [
-                msg
-                for msg in phone_channels[channel_name]
-                if msg[0] <= channel_last_message_id.get(channel_name, 0)
-            ]
             last_message_tuple = None
             if channel_notifs.get(channel_name, False):
-                for candidate in reversed(revealed_messages):
+                for candidate in reversed(phone_channels[channel_name]):
                     if candidate[3] != 1 and candidate[1] != phone_config["phone_player_name"]:
                         last_message_tuple = candidate
                         break
             if last_message_tuple is None:
-                for candidate in reversed(revealed_messages):
+                for candidate in reversed(phone_channels[channel_name]):
                     if candidate[3] != 1:
                         last_message_tuple = candidate
                         break
@@ -781,12 +575,7 @@ init python:
                 sender = last_message_tuple[1]
                 message_text = last_message_tuple[2]
                 message_kind = last_message_tuple[3]
-                message_global_id = last_message_tuple[4]
                 preview_text = message_text
-                if message_kind == 4:
-                    state = store.phone_deleted_state.get(channel_name, {}).get(message_global_id)
-                    if state and not state.get("visible", True):
-                        preview_text = "Message supprimé."
                 if message_kind == 3: # has emojis, get rid of them with fire
                     preview_text = re.sub(r"<[^>]+>", "", preview_text).strip()
                 # prepend sender if it's a group chat and not from the player
@@ -917,20 +706,11 @@ init python:
         """Checks if any channel OTHER than the current one has an active notification."""
         return any(has_notif for channel, has_notif in channel_notifs.items() if channel != current_app)
 
-label set_phone_time_label(time_string):
-    $ set_phone_time(time_string)
-    return
-
-label advance_phone_time_label(minutes_delta=0):
-    $ advance_phone_time(minutes_delta)
-    return
-
 # ---------- Styles du système de messagerie (sans thèmes) ----------
 
 style phone_header_style is default:
     size 28
     xalign 0.5
-    font phone_font()
 
 style phone_channel_button_style is button:
     background None
@@ -939,40 +719,21 @@ style phone_channel_button_style is button:
     ypadding 8
 
 style phone_channel_name_style is default:
-    size 34
+    size 40
     bold True
-    font phone_font()
 
 style phone_channel_preview_style is default:
-    size 22
-    font phone_font()
+    size 20
 
 style phone_message_style is default:
     size 24
     xalign 0.0
-    font phone_font()
 
 style phone_sender_name_style is default:
     size 18
     yoffset 2
     ypadding 0
     yalign 1.0
-    font phone_font()
-
-style phone_nav_button is button:
-    background None
-    hover_background None
-    focus_mask True
-
-style phone_eta_time is default:
-    font phone_font()
-    size 34
-    color "#FFFFFF"
-
-style phone_eta_label is default:
-    font phone_font()
-    size 24
-    color "#FFFFFF"
 
 # ---------- Transforms d’animation utilisés dans le chat ----------
 
@@ -1047,49 +808,44 @@ screen phone_navbar():
 
     zorder 100
 
-    if not renpy.get_screen("gallery_viewer"):
+    frame:
+        align (0.5, 1.0)
+        xfill True
+        ysize 110
+        padding (0, 20)
 
-        frame:
-            align (0.5, 1.0)
+        $ nav_bg = "#00000080" if current_app == "home" else "#000000"
+        add Solid(nav_bg)
+
+
+        grid 3 1:
             xfill True
-            ysize 110
-            padding (0, 20)
+            yfill False
 
-            $ nav_bg = "#00000080" if current_app == "home" else "#000000"
-            add Solid(nav_bg)
+            # Bouton "Retour"
+            imagebutton:
+                idle "gui/back.png"
+                hover "gui/back.png"
+                xalign 0.5
+                yalign 0.5
+                action Function(phone_back)
+                sensitive not disable_phone_menu_switch
 
+            # Bouton "Home" (menu principal du téléphone)
+            imagebutton:
+                idle "gui/menu.png"
+                hover "gui/menu.png"
+                xalign 0.5
+                yalign 0.5
+                action Function(phone_home)
 
-            grid 3 1:
-                xfill True
-                yfill False
-
-                # Bouton "Retour"
-                imagebutton:
-                    idle "gui/back.png"
-                    hover "gui/back.png"
-                    xalign 0.5
-                    yalign 0.5
-                    style "phone_nav_button"
-                    action Function(phone_back)
-                    sensitive not disable_phone_menu_switch
-
-                # Bouton "Home" (menu principal du téléphone)
-                imagebutton:
-                    idle "gui/menu.png"
-                    hover "gui/menu.png"
-                    xalign 0.5
-                    yalign 0.5
-                    style "phone_nav_button"
-                    action Function(phone_home)
-
-                # Bouton "Autre" (pour plus tard)
-                imagebutton:
-                    idle "gui/other.png"
-                    hover "gui/other.png"
-                    xalign 0.5
-                    yalign 0.5
-                    style "phone_nav_button"
-                    action NullAction()
+            # Bouton "Autre" (pour plus tard)
+            imagebutton:
+                idle "gui/other.png"
+                hover "gui/other.png"
+                xalign 0.5
+                yalign 0.5
+                action NullAction()
 
 # ------------------------- Main Menu ------------------------------------------
 
@@ -1131,45 +887,7 @@ screen Phonescreen():
     elif current_app in phone_screen_routes:
         use expression phone_screen_routes[current_app]
 
-    use eta_bar
     use phone_navbar
-
-screen eta_bar():
-
-    zorder 110
-
-    if not renpy.get_screen("gallery_viewer"):
-
-        frame:
-            xfill True
-            ysize 90
-            padding (30, 20)
-            background "#00000080"
-
-            hbox:
-                xfill True
-                yalign 0.5
-
-                text format_time(phone_time_minutes):
-                    style "phone_eta_time"
-
-                null width 20
-
-                hbox:
-                    xalign 1.0
-                    spacing 20
-
-                    if renpy.loadable("gui/phone/network.png"):
-                        add "gui/phone/network.png"
-                    else:
-                        text "NET":
-                            style "phone_eta_label"
-
-                    if renpy.loadable("gui/phone/battery.png"):
-                        add "gui/phone/battery.png"
-                    else:
-                        text "BAT":
-                            style "phone_eta_label"
 
 #---------------------------- Messenger ----------------------------------------
 
@@ -1209,7 +927,7 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                         mousewheel True
                         xfill True
                         yfill True
-                        scrollbars "none"
+                        scrollbars None
 
                         vbox:
                             spacing 15
@@ -1223,38 +941,29 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                                     messenger_to_display = visible_channels
 
                             for channel_name in messenger_to_display:
-                                    button:
-                                        xfill True
-                                        action [
-                                            SetDict(channel_notifs, channel_name, False),
-                                            Function(open_phone_channel, channel_name)
-                                        ]
-                                        background "#0000"
-                                        hover_background "#ffffff20"
-                                        padding (16, 12)
+                                button:
+                                    xfill True
+                                    action [
+                                        SetDict(channel_notifs, channel_name, False),
+                                        Function(open_phone_channel, channel_name)
+                                    ]
+                                    background "#0000"
+                                    hover_background "#ffffff20"
+                                    padding (18, 14)
 
-                                        # --- DESCRIPTIONS DES CONVERSATIONS ---
-                                        vbox:
-                                            # icon, name, chat last message, and notification
-                                            hbox:
-                                                #  icon
-                                                spacing 12
-                                                if renpy.loadable("gui/phone/avatar_mask.png"):
-                                                    add im.AlphaMask(
-                                                        phone_channel_data[channel_name]["icon"],
-                                                        "gui/phone/avatar_mask.png",
-                                                    ):
-                                                        xysize (64, 64)
-                                                        yalign 0.5
-                                                else:
-                                                    add phone_channel_data[channel_name]["icon"]:
-                                                        xysize (64, 64)
-                                                        yalign 0.5
-                                                        # TODO: circle mask once an avatar mask asset is available
-                                                # name and preview message
-                                                vbox:
-                                                    $ name_color = "#111111" if not dark_mode else "#FFFFFF"
-                                                    $ preview_color = "#333333" if not dark_mode else "#DDDDDD"
+                                    # --- DESCRIPTIONS DES CONVERSATIONS ---
+                                    vbox:
+                                        # icon, name, chat last message, and notification
+                                        hbox:
+                                            #  icon
+                                            spacing 14
+                                            add phone_channel_data[channel_name]["icon"]:
+                                                xysize (64, 64)
+                                                yalign 0.5
+                                            # name and preview message
+                                            vbox:
+                                                $ name_color = "#111111" if not dark_mode else "#FFFFFF"
+                                                $ preview_color = "#333333" if not dark_mode else "#DDDDDD"
 
                                                 text phone_channel_data[channel_name]["display_name"]:
                                                     style "phone_channel_name_style"
@@ -1290,7 +999,7 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                         xfill True
                         yfill True
                         yadjustment yadj
-                        scrollbars "none"
+                        scrollbars None
                         mousewheel True
                         draggable True
 
@@ -1309,11 +1018,11 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                                 yfill True
                                 background None
                                 hover_background None
-                                action Function(phone_reveal_messages, current_app)
+                                action Function(phone_reveal_next, current_app)
 
                             # AUTO MODE : révèle automatiquement les messages en attente
                             if auto_timer_enabled and phone_should_auto_advance(current_app):
-                                timer phone_effective_auto_delay() action Function(phone_reveal_messages, current_app)
+                                timer phone_chat_auto_delay action Function(phone_reveal_next, current_app)
 
                             vbox:
                                 spacing 8
@@ -1324,19 +1033,18 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                                     $ latest_channel_id = channel_last_message_id.get(current_app, 0)
                                     $ last_sender_in_chat_view = None
                                     $ mc_avatar_path = "avatars/mc_icon.png" if renpy.loadable("avatars/mc_icon.png") else None
-                                    $ bubble_max_width = phone_config.get("bubble_max_width", 378)
-                                    $ avatar_side = phone_config.get("message_avatar_size", 64)
-                                    $ avatar_display_size = (avatar_side, avatar_side)
-                                    $ avatar_slot_width = avatar_display_size[0]
 
                                     # display all messages
                                     for message_data in phone_channels[current_app]:
                                         $ msg_id, sender, message_text, message_kind, current_global_id, summary_alt, image_x, image_y = message_data
 
+                                        if current_app not in phone_animated_global_ids:
+                                            $ phone_animated_global_ids[current_app] = []
+
                                         $ should_animate = False
-                                        if message_kind in (0, 2, 3, 4) and current_global_id not in phone_animated_global_ids:
+                                        if message_kind in (0, 2, 3) and current_global_id not in phone_animated_global_ids[current_app]:
                                             $ should_animate = True
-                                            $ phone_animated_global_ids.add(current_global_id)
+                                            $ phone_animated_global_ids[current_app].append(current_global_id)
 
                                             if msg_id == latest_channel_id and not channel_seen_latest[current_app]:
                                                 $ channel_seen_latest[current_app] = True
@@ -1360,9 +1068,7 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                                         $ header_align = 1.0 - msg_align if is_player_message else msg_align
                                         $ name_colour = "#053ffd" if is_player_message else ("#111111" if not dark_mode else "#FFFFFF")
 
-                                        $ display_avatar = message_kind in (0, 2, 3, 4) and sender != last_sender_in_chat_view
-
-                                        if display_avatar:
+                                        if message_kind in (0, 2, 3) and sender != last_sender_in_chat_view:
                                             hbox:
                                                 xalign header_align
                                                 if is_player_message:
@@ -1370,62 +1076,38 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                                                 else:
                                                     xanchor 0.0
                                                 spacing 8
-
-                                                if header_icon and not is_player_message:
+                                                if header_icon:
                                                     add header_icon:
-                                                        xysize avatar_display_size
+                                                        xysize (40, 40)
                                                         yalign 0.5
-                                                if is_player_message:
-                                                    text sender:
-                                                        style "phone_sender_name_style"
-                                                        color name_colour
-                                                    if header_icon:
-                                                        add header_icon:
-                                                            xysize avatar_display_size
-                                                            yalign 0.5
-                                                else:
-                                                    text sender:
-                                                        style "phone_sender_name_style"
-                                                        color name_colour
-                                                if not is_player_message and not header_icon:
-                                                    null width avatar_slot_width
+                                                text sender:
+                                                    style "phone_sender_name_style"
+                                                    color name_colour
+
+    #                                    # displaying the sender's name for group chats
+    #                                    $ is_group_chat = phone_channel_data[current_app]["is_group"]
+    #                                    if is_group_chat and sender != phone_config["phone_player_name"] and sender != last_sender_in_chat_view:
+    #                                        text sender:
+    #                                            style "phone_sender_name_style"
+    #                                            xalign msg_align
+    #                                            xoffset 5
 
                                         # normal message : kind = 0
                                         if message_kind == 0:
-                                            hbox:
-                                                spacing 12
-                                                xalign (1.0 - msg_align if is_player_message else msg_align)
+                                            frame:
                                                 if is_player_message:
-                                                    xanchor 1.0
+                                                    xpos 1.0 - msg_align xanchor 1.0
                                                 else:
-                                                    xanchor 0.0
-
-                                                if not is_player_message:
-                                                    if display_avatar and header_icon:
-                                                        add header_icon:
-                                                            xysize avatar_display_size
-                                                            yalign 1.0
-                                                    else:
-                                                        null width avatar_slot_width
-
-                                                frame:
-                                                    background Frame(msg_frame, 23, 23)
-                                                    padding (15, 10)
-                                                    xmaximum bubble_max_width
-                                                    if should_animate:
-                                                        at message_appear(anim_direction)
-                                                    text message_text:
-                                                        color text_colour
-                                                        size phone_config["message_font_size"]
-                                                        layout "tex"
-
-                                                if is_player_message:
-                                                    if display_avatar and header_icon:
-                                                        add header_icon:
-                                                            xysize avatar_display_size
-                                                            yalign 1.0
-                                                    else:
-                                                        null width avatar_slot_width
+                                                    xpos msg_align xanchor 0.0
+                                                background Frame(msg_frame, 23, 23)
+                                                padding (15, 10)
+                                                xmaximum 360
+                                                if should_animate:
+                                                    at message_appear(anim_direction)
+                                                text message_text:
+                                                    color text_colour
+                                                    size phone_config["message_font_size"]
+                                                    layout "tex"
                                             $ last_sender_in_chat_view = sender
 
                                         # timestamp kind = 1
@@ -1433,7 +1115,7 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                                             null height 15
                                             hbox:
                                                 xalign 0.5
-                                                xmaximum bubble_max_width
+                                                xmaximum 360
                                                 text message_text:
                                                     color "#AAAAAA"
                                                     size phone_config["timestamp_font_size"]
@@ -1442,147 +1124,39 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
 
                                         # photo kind = 2
                                         elif message_kind == 2:
-                                            hbox:
-                                                spacing 12
-                                                xalign (1.0 - msg_align if is_player_message else msg_align)
+                                            frame:
                                                 if is_player_message:
-                                                    xanchor 1.0
+                                                    xpos 1.0 - msg_align xanchor 1.0
                                                 else:
-                                                    xanchor 0.0
+                                                    xpos msg_align xanchor 0.0
+                                                background Frame(msg_frame, 23, 23)
+                                                padding (10, 10)
+                                                xmaximum 360
 
-                                                if not is_player_message:
-                                                    if display_avatar and header_icon:
-                                                        add header_icon:
-                                                            xysize avatar_display_size
-                                                            yalign 1.0
-                                                    else:
-                                                        null width avatar_slot_width
+                                                if should_animate:
+                                                    at message_appear(anim_direction)
 
-                                                frame:
-                                                    background Frame(msg_frame, 23, 23)
-                                                    padding (10, 10)
-                                                    xmaximum bubble_max_width
-
-                                                    if should_animate:
-                                                        at message_appear(anim_direction)
-
-                                                    add Image(message_text) at scale_to_fit(image_x, image_y)
-
-                                                if is_player_message:
-                                                    if display_avatar and header_icon:
-                                                        add header_icon:
-                                                            xysize avatar_display_size
-                                                            yalign 1.0
-                                                    else:
-                                                        null width avatar_slot_width
+                                                add Image(message_text) at scale_to_fit(image_x, image_y)
                                             $ last_sender_in_chat_view = sender
 
                                         # texte avec emojis kind = 3
                                         elif message_kind == 3:
-                                            hbox:
-                                                spacing 12
-                                                xalign (1.0 - msg_align if is_player_message else msg_align)
+                                            frame:
                                                 if is_player_message:
-                                                    xanchor 1.0
+                                                    xpos 1.0 - msg_align xanchor 1.0
                                                 else:
-                                                    xanchor 0.0
+                                                    xpos msg_align xanchor 0.0
+                                                background Frame(msg_frame, 23, 23)
+                                                padding (15, 10)
+                                                xmaximum 360
 
-                                                if not is_player_message:
-                                                    if display_avatar and header_icon:
-                                                        add header_icon:
-                                                            xysize avatar_display_size
-                                                            yalign 1.0
-                                                    else:
-                                                        null width avatar_slot_width
+                                                if should_animate:
+                                                    at message_appear(anim_direction)
 
-                                                frame:
-                                                    background Frame(msg_frame, 23, 23)
-                                                    padding (15, 10)
-                                                    xmaximum bubble_max_width
-
-                                                    if should_animate:
-                                                        at message_appear(anim_direction)
-
-                                                    text message_text:
-                                                        color text_colour
-                                                        size phone_config["message_font_size"]
-                                                        layout "tex"
-
-                                                if is_player_message:
-                                                    if display_avatar and header_icon:
-                                                        add header_icon:
-                                                            xysize avatar_display_size
-                                                            yalign 1.0
-                                                    else:
-                                                        null width avatar_slot_width
-                                            $ last_sender_in_chat_view = sender
-
-                                        # message supprimable kind = 4
-                                        elif message_kind == 4:
-                                            $ state = _get_deleted_state(current_app, current_global_id)
-                                            $ duration = phone_config.get("deleted_message_duration", 3)
-                                            if state["visible"] and state["revealed_at"] is None:
-                                                $ state["revealed_at"] = renpy.get_game_runtime()
-                                            $ elapsed = renpy.get_game_runtime() - state["revealed_at"] if state["revealed_at"] is not None else 0
-                                            if state["visible"] and state["revealed_at"] is not None and elapsed >= duration:
-                                                $ hide_deleted_message(current_app, current_global_id)
-                                            elif state["visible"] and state["revealed_at"] is not None:
-                                                $ remaining = max(0.0, duration - elapsed)
-                                                if remaining > 0:
-                                                    timer remaining action Function(hide_deleted_message, current_app, current_global_id)
-
-                                            $ display_text = message_text if state["visible"] else "Message supprimé."
-
-                                            hbox:
-                                                spacing 12
-                                                xalign (1.0 - msg_align if is_player_message else msg_align)
-                                                if is_player_message:
-                                                    xanchor 1.0
-                                                else:
-                                                    xanchor 0.0
-
-                                                if not is_player_message:
-                                                    if display_avatar and header_icon:
-                                                        add header_icon:
-                                                            xysize avatar_display_size
-                                                            yalign 1.0
-                                                    else:
-                                                        null width avatar_slot_width
-
-                                                if state["visible"]:
-                                                    frame:
-                                                        background Frame(msg_frame, 23, 23)
-                                                        padding (15, 10)
-                                                        xmaximum bubble_max_width
-
-                                                        if should_animate:
-                                                            at message_appear(anim_direction)
-
-                                                        text display_text:
-                                                            color text_colour
-                                                            size phone_config["message_font_size"]
-                                                            layout "tex"
-                                                else:
-                                                    button:
-                                                        background None
-                                                        hover_background None
-                                                        action Function(toggle_deleted_message, current_app, current_global_id)
-                                                        frame:
-                                                            background Frame(msg_frame, 23, 23)
-                                                            padding (15, 10)
-                                                            xmaximum bubble_max_width
-                                                            text display_text:
-                                                                color text_colour
-                                                                size phone_config["message_font_size"]
-                                                                layout "tex"
-
-                                                if is_player_message:
-                                                    if display_avatar and header_icon:
-                                                        add header_icon:
-                                                            xysize avatar_display_size
-                                                            yalign 1.0
-                                                    else:
-                                                        null width avatar_slot_width
+                                                text message_text:
+                                                    color text_colour
+                                                    size phone_config["message_font_size"]
+                                                    layout "tex"
                                             $ last_sender_in_chat_view = sender
 
                                 else:
@@ -1662,7 +1236,6 @@ screen app_gallery():
 
                     $ cols = 3
                     $ rows = (len(gallery_all) + cols - 1) // cols
-                    $ thumb_size = (180, 320)
 
                     grid cols rows:
                         spacing 20
@@ -1671,38 +1244,16 @@ screen app_gallery():
 
                             if img_id in gallery_unlocked:
                                 button:
-                                    xysize thumb_size
+                                    xsize 250
+                                    ysize 140
                                     action Show("gallery_viewer", img_id=img_id)
-                                    add Transform("gallery/%s.png" % img_id, xysize=thumb_size, fit=True):
-                                        align (0.5, 0.5)
+                                    add im.Scale("gallery/%s.png" % img_id, 250, 140)
                             else:
                                 button:
-                                    xysize thumb_size
+                                    xsize 250
+                                    ysize 150
                                     action NullAction()
-                                    add Transform("gui/gallery_lock.png", xysize=thumb_size, fit=True):
-                                        align (0.5, 0.5)
-
-screen gallery_viewer(img_id):
-
-    modal True
-    zorder 200
-
-    key "dismiss" action Hide("gallery_viewer")
-
-    frame:
-        xfill True
-        yfill True
-        background "#000000"
-
-        button:
-            xfill True
-            yfill True
-            background None
-            hover_background None
-            action Hide("gallery_viewer")
-
-            add Transform("gallery/%s.png" % img_id, xysize=(config.screen_width, config.screen_height), fit=True):
-                align (0.5, 0.5)
+                                    add im.Scale("gui/gallery_lock.png", 250, 140)
 
 #---------------------------- Saves ----------------------------------------
 
@@ -1719,227 +1270,31 @@ screen app_saves():
             background app_body_bg()
             xfill True
             yfill True
-            padding (30, 30)
-
-            viewport:
-                draggable True
-                mousewheel True
-                scrollbars "vertical"
-                xfill True
-                yfill True
-
-                grid 2 6:
-                    spacing 20
-                    transpose True
-
-                    use phone_save_slot(PHONE_AUTOSAVE_SLOT_ID, "Autosave", page="auto", allow_save=False)
-
-                    for i in range(1, 11):
-                        use phone_save_slot(i, "Sauvegarde [i]")
-
-screen phone_save_slot(slot_id, title, page=None, allow_save=True):
-
-    $ thumb_w, thumb_h = (config.thumbnail_width, config.thumbnail_height)
-    $ exists = FileLoadable(slot_id, page=page)
-    $ timestamp = FileTime(slot_id, format="%d/%m %H:%M", page=page) if exists else None
-
-    frame:
-        style "phone_save_slot_frame"
-        xfill True
-
-        vbox:
-            spacing 10
-
-            hbox:
-                spacing 10
-                xfill True
-                text title:
-                    style "phone_save_slot_title"
-                text ("• " + ("Occupé" if exists else "Libre")):
-                    style "phone_save_slot_status"
-                    color ("#6AE388" if exists else "#BBBBBB")
-
-            if exists:
-                add FileScreenshot(slot_id, page=page) xysize (thumb_w, thumb_h) fit True
-            else:
-                frame:
-                    xysize (thumb_w, thumb_h)
-                    background "#FFFFFF10"
-                    xalign 0.5
-                    yalign 0.5
-                    text "Aperçu" style "phone_save_slot_hint"
-
-            if timestamp:
-                text "Dernière sauvegarde : [timestamp]" style "phone_save_slot_time"
-            else:
-                text "Aucune sauvegarde dans cet emplacement" style "phone_save_slot_hint"
-
-            hbox:
-                spacing 12
-                if allow_save:
-                    textbutton "Sauver":
-                        style "phone_save_slot_button"
-                        action FileSave(slot_id, page=page)
-
-                textbutton "Charger":
-                    style "phone_save_slot_button"
-                    action FileLoad(slot_id, page=page)
-                    sensitive exists
-
-style phone_save_slot_frame is frame:
-    background "#FFFFFF0F"
-    padding (16, 16)
-
-style phone_save_slot_title is default:
-    size 30
-    color "#FFFFFF"
-    font phone_font()
-
-style phone_save_slot_status is default:
-    size 22
-    font phone_font()
-
-style phone_save_slot_hint is default:
-    size 22
-    color "#BFBFBF"
-    font phone_font()
-
-style phone_save_slot_time is default:
-    size 22
-    color "#FFFFFF"
-    font phone_font()
-
-style phone_save_slot_button is phone_text_button:
-    padding (16, 12)
-
-#---------------------------- Cloud & Social Stubs ----------------------------------------
-
-screen app_cloud():
-    modal True
-
-    vbox:
-        xfill True
-        yfill True
-
-        use app_header("Cloud", "app_cloud")
-
-        frame:
-            background app_body_bg()
-            xfill True
-            yfill True
-            padding (30, 30)
+            padding (40, 40)
 
             vbox:
-                spacing 20
+                spacing 15
 
-                text "Cloud Workspace":
-                    style "phone_channel_name_style"
-
-                $ filter_label = ", ".join(app_cloud_state.get("filters", [])) or "None"
-                text "Filters actifs : [filter_label]":
-                    color ("#202020" if not dark_mode else "#f2f2f2")
-
-                frame:
-                    background "#FFFFFF10"
-                    xfill True
-                    ysize 420
-                    padding (20, 20)
-
-                    vbox:
-                        spacing 8
+                for i in range(1, 11):  # 10 slots
+                    hbox:
+                        spacing 20
                         xfill True
-                        xalign 0.5
-                        yalign 0.5
 
-                        text "Espace de flux cloud en attente de contenu.":
-                            color ("#202020" if not dark_mode else "#f2f2f2")
-                        text "Éléments synchronisés : [len(app_cloud_state['feed_items'])]":
-                            color ("#202020" if not dark_mode else "#f2f2f2")
-                        # TODO: brancher le flux cloud réel lorsque les données seront injectées.
+                        $ exists = FileLoadable(i)
 
-screen app_social_soft():
-    modal True
+                        if exists:
+                            text FileTime(i, format="%d/%m %H:%M") size 22
+                        else:
+                            text "Emplacement [i] vide" size 22
 
-    vbox:
-        xfill True
-        yfill True
+                        null width 40
 
-        use app_header("Social (Soft)", "app_social_soft")
+                        textbutton "Sauver ici":
+                            action FileSave(i)
 
-        frame:
-            background app_body_bg()
-            xfill True
-            yfill True
-            padding (30, 30)
-
-            vbox:
-                spacing 20
-
-                text "Social - Soft":
-                    style "phone_channel_name_style"
-
-                text "Sujets actifs : [app_social_soft_state['active_topic'] if app_social_soft_state['active_topic'] else 'Aucun']":
-                    color ("#202020" if not dark_mode else "#f2f2f2")
-
-                frame:
-                    background "#FFFFFF10"
-                    xfill True
-                    ysize 420
-                    padding (20, 20)
-
-                    vbox:
-                        spacing 8
-                        xfill True
-                        xalign 0.5
-                        yalign 0.5
-
-                        text "Grille sociale (soft) en préparation.":
-                            color ("#202020" if not dark_mode else "#f2f2f2")
-                        text "Cartes en attente : [len(app_social_soft_state['grid_items'])]":
-                            color ("#202020" if not dark_mode else "#f2f2f2")
-                        # TODO: ajouter le rendu des cartes sociales lorsque les données seront disponibles.
-
-screen app_social_hard():
-    modal True
-
-    vbox:
-        xfill True
-        yfill True
-
-        use app_header("Social (Hard)", "app_social_hard")
-
-        frame:
-            background app_body_bg()
-            xfill True
-            yfill True
-            padding (30, 30)
-
-            vbox:
-                spacing 20
-
-                text "Social - Hard":
-                    style "phone_channel_name_style"
-
-                text "Filtre courant : [app_social_hard_state['active_topic'] if app_social_hard_state['active_topic'] else 'Aucun']":
-                    color ("#202020" if not dark_mode else "#f2f2f2")
-
-                frame:
-                    background "#FFFFFF10"
-                    xfill True
-                    ysize 420
-                    padding (20, 20)
-
-                    vbox:
-                        spacing 8
-                        xfill True
-                        xalign 0.5
-                        yalign 0.5
-
-                        text "Section de flux avancé en attente de contenu.":
-                            color ("#202020" if not dark_mode else "#f2f2f2")
-                        text "Éléments en file d'attente : [len(app_social_hard_state['grid_items'])]":
-                            color ("#202020" if not dark_mode else "#f2f2f2")
-                        # TODO: connecter les données du flux social avancé et le rendu du grid.
+                        if exists:
+                            textbutton "Charger":
+                                action FileLoad(i)
 
 #---------------------------- Settings ----------------------------------------
 
@@ -2013,53 +1368,36 @@ screen app_settings():
                         background None
                         selected_background selected_bg_color
 
-                # --- GAMEPLAY & SONS ---
-
                 vbox:
                     style_prefix "check"
-
-                    label _("Gameplay")
+                    label _("Messenger")
                     textbutton _("Auto-advance chat messages"):
-                        action Function(toggle_phone_chat_auto_advance)
+                        action ToggleVariable("phone_chat_auto_advance", True, False)
                         selected phone_chat_auto_advance
                         text_color text_color
                         text_selected_color selected_text_color
                         background None
                         selected_background selected_bg_color
 
-                    textbutton _("Skip"):
-                        action Function(toggle_phone_chat_skip_enabled)
-                        selected phone_chat_skip_enabled
-                        text_color text_color
-                        text_selected_color selected_text_color
-                        background None
-                        selected_background selected_bg_color
 
-                    text _("Messages revealed per interaction: [phone_chat_skip_batch_size]") color text_color
+                null height 200
 
-                    hbox:
-                        spacing 15
-                        bar value VariableValue(
-                            "phone_chat_skip_batch_size",
-                            PHONE_CHAT_SKIP_BATCH_MAX - PHONE_CHAT_SKIP_BATCH_MIN,
-                            offset=PHONE_CHAT_SKIP_BATCH_MIN,
-                            step=1,
-                        ) changed Function(set_phone_chat_skip_batch_size)
-                        text "[phone_chat_skip_batch_size]" color text_color
+                # --- TEXTE ---
 
-                    text _("Auto chat delay (seconds): [phone_chat_auto_delay:.1f]") color text_color
+                vbox:
+                    label _("Text")
+                    spacing 15
+                    text "Text Speed" color text_color
+                    bar value Preference("text speed")
 
-                    hbox:
-                        spacing 15
-                        bar value VariableValue(
-                            "phone_chat_auto_delay",
-                            PHONE_CHAT_AUTO_DELAY_MAX - PHONE_CHAT_AUTO_DELAY_MIN,
-                            offset=PHONE_CHAT_AUTO_DELAY_MIN,
-                            step=PHONE_CHAT_AUTO_DELAY_STEP,
-                        ) changed Function(set_phone_chat_auto_delay)
-                        text "{:.1f}s".format(phone_chat_auto_delay) color text_color
+                    text "Auto-Forward Time" color text_color
+                    bar value Preference("auto-forward time")
 
-                    null height 30
+                # --- SONS ---
+
+                null height 400
+
+                vbox:
 
                     if config.has_music or config.has_sound or config.has_voice:
                         label _("Sounds")

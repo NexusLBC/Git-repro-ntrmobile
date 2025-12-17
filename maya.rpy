@@ -1,7 +1,5 @@
 label maya_scene_1:
-    $ send_phone_message(phone_config["phone_player_name"], "Oui, je te lis.", "maya_dm", 0, do_pause=False)
-    $ send_phone_message("Maya", "Super !", "maya_dm", 0, do_pause=False)
-    $ send_phone_message("Maya", "Tu veux que je t'envoie une image ? <emoji_eyes>", "maya_dm", 3, do_pause=False)
+    $ send_phone_message("Maya", "Tu veux que je t'envoie une image ?", "maya_dm")
 
     $ present_phone_choices(
         [

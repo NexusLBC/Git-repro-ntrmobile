@@ -248,8 +248,6 @@ screen quick_menu():
         hbox:
             style_prefix "quick"
 
-            spacing gui.navigation_spacing
-
             xalign 0.5
             yalign 1.0
 
@@ -260,7 +258,7 @@ screen quick_menu():
             textbutton _("Save") action ShowMenu('save')
             textbutton _("Q.Save") action QuickSave()
             textbutton _("Q.Load") action QuickLoad()
-            textbutton _("Preferences") action ShowMenu('preferences')
+            textbutton _("Prefs") action ShowMenu('preferences')
 
 
 ## This code ensures that the quick_menu screen is displayed in-game, whenever
@@ -356,11 +354,6 @@ image lock_wallpaper = "gui/lock_wallpaper.png"
 image unlock_slider = "gui/unlock_slider.png"
 image unlock_button = "gui/unlock_button.png"
 
-style lock_time_style is default:
-    font phone_font()
-    size 140
-    color "#FFFFFF"
-
 
 init python:
 
@@ -396,66 +389,55 @@ init python:
         # Quand le bouton arrive assez à droite, on lance le jeu
         if d.x >= RIGHT_LIMIT - 5:
             store.lock_done = True
-            renpy.jump_out_of_context("start")
-            return
+            renpy.call_in_new_context("start")
 
-        # retour à gauche
-        d.snap(LEFT_LIMIT, UNLOCK_Y)
+        else:
+            # retour à gauche
+            d.snap(LEFT_LIMIT, UNLOCK_Y)
 
 screen main_menu():
 
     ## This ensures that any other menu screen is replaced.
     tag menu
 
-    $ autosave_candidates = renpy.list_saved_games()
-    $ has_autosave = (renpy.can_load("autosave") or any("autosave" in str(slot) for slot in autosave_candidates))
+    if lock_done == True:
 
-    # Fond d'écran de verrouillage
-    add "lock_wallpaper"
+        use Phonescreen
 
-    # Heure du téléphone
-    text format_time(phone_time_minutes):
-        style "lock_time_style"
-        xalign 0.5
-        yalign 0.35
+    else:
+        # Fond d'écran de verrouillage
+        add "lock_wallpaper"
 
-    # Zone du slider en bas
-    frame:
-        xalign 0.5
-        yalign 0.85
-        xsize FRAME_WIDTH
-        ysize FRAME_HEIGHT
-        background None
-
-        # Image de la barre de slide
-        add "gui/unlock_slider.png":
-            xpos SLIDER_LEFT
-            ypos SLIDER_TOP
-
-        #Texte par dessus la barre
-        text "Glisser pour déverrouiller" xalign 0.5 yalign 0.5 color "#ffffff" size 32
-
-        # Groupe de drag
-        draggroup:
-
-            # Le bouton que l'on fait glisser
-            drag:
-                draggable True
-                dragged unlock_dragged
-                drag_offscreen limit_unlock
-
-                # Position de départ du bouton dans la barre
-                xpos 0
-                ypos 3
-
-                child "gui/unlock_button.png"
-
-    if has_autosave:
-        textbutton "Continue" style "lock_continue_button":
+        # Zone du slider en bas
+        frame:
             xalign 0.5
-            yalign 0.95
+            yalign 0.85
             xsize FRAME_WIDTH
-            action Function(renpy.load, "autosave")
+            ysize FRAME_HEIGHT
+            background None
+
+            # Image de la barre de slide
+            add "gui/unlock_slider.png":
+                xpos SLIDER_LEFT
+                ypos SLIDER_TOP
+
+            #Texte par dessus la barre
+            text "Glisser pour déverrouiller" xalign 0.5 yalign 0.5 color "#ffffff" size 32
+
+            # Groupe de drag
+            draggroup:
+
+                # Le bouton que l'on fait glisser
+                drag:
+                    draggable True
+                    dragged unlock_dragged
+                    drag_offscreen limit_unlock
+
+                    # Position de départ du bouton dans la barre
+                    xpos 0
+                    ypos 3
+
+                    child "gui/unlock_button.png"
 
 
 style main_menu_frame is empty
@@ -463,9 +445,6 @@ style main_menu_vbox is vbox
 style main_menu_text is gui_text
 style main_menu_title is main_menu_text
 style main_menu_version is main_menu_text
-
-style lock_continue_button is button
-style lock_continue_button_text is button_text
 
 style main_menu_frame:
     xsize 420
@@ -488,17 +467,6 @@ style main_menu_title:
 
 style main_menu_version:
     properties gui.text_properties("version")
-
-style lock_continue_button:
-    background Frame("gui/button/idle.png", gui.button_borders, tile=gui.button_tile)
-    hover_background Frame("gui/button/hover.png", gui.button_borders, tile=gui.button_tile)
-    padding (30, 18)
-    xalign 0.5
-
-style lock_continue_button_text:
-    size 32
-    color "#ffffff"
-    hover_color gui.accent_color
 
 
 ## Game Menu screen ############################################################
@@ -986,14 +954,14 @@ screen history():
 
                 if h.who:
 
-                    text h.who:
+                    label h.who:
                         style "history_name"
                         substitute False
 
                         ## Take the color of the who text from the Character, if
                         ## set.
                         if "color" in h.who_args:
-                            color h.who_args["color"]
+                            text_color h.who_args["color"]
 
                 $ what = renpy.filter_text_tags(h.what, allow=gui.history_allow_tags)
                 text what:
@@ -1511,8 +1479,6 @@ screen quick_menu():
 
         hbox:
             style_prefix "quick"
-
-            spacing gui.navigation_spacing
 
             xalign 0.5
             yalign 1.0

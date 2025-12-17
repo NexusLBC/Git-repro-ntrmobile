@@ -7,9 +7,8 @@ label start:
     $ create_phone_channel("elias_dm", "Elias", ["Elias", phone_config["phone_player_name"]], "avatars/elias_icon.png")
 
     # Tu peux envoyer des messages de base si tu veux que la conv ne soit pas vide
-    #$ send_phone_message("sender", "message_text", "channel_name", message_kind=0, do_pause=False)
-    $ send_phone_message("Maya", "Test test", "maya_dm", do_pause=False)
-    jump maya_scene_1
+    $ send_phone_message("Maya", "Salut, tu vois ce message ?", "maya_dm", do_pause=False)
+    $ send_phone_message(phone_config["phone_player_name"], "Oui, je te lis.", "maya_dm", do_pause=False)
 
     # Puis ton label Phone (lockscreen -> home -> etc.)
 
@@ -19,4 +18,3 @@ label start:
 
 image emoji_sob = "phone/emoji/sob.png"
 image emoji_dizzy = "phone/emoji/dizzy.png"
-image emoji_eyes = "phone/emoji/eyes.png"
