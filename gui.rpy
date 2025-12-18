@@ -62,6 +62,19 @@ define gui.name_text_font = "DejaVuSans.ttf"
 
 ## The font used for out-of-game text.
 define gui.interface_text_font = "DejaVuSans.ttf"
+define gui.fallback_font = "DejaVuSans.ttf"
+
+init python:
+    helvetica_font = "Helvetica.ttf"
+
+    if renpy.loadable(helvetica_font):
+        gui.text_font = helvetica_font
+        gui.interface_text_font = helvetica_font
+        gui.name_text_font = helvetica_font
+    else:
+        gui.text_font = gui.fallback_font
+        gui.interface_text_font = gui.fallback_font
+        gui.name_text_font = gui.fallback_font
 
 ## The size of normal dialogue text.
 define gui.text_size = 33
