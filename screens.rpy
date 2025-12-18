@@ -98,10 +98,14 @@ style frame:
 screen say(who, what):
     style_prefix "say"
 
+    $ say_window_background = None
+    if not phone_mode:
+        $ say_window_background = Image("gui/textbox.png", xalign=0.5, yalign=1.0)
+
     window:
         id "window"
 
-        background (None if phone_mode else Image("gui/textbox.png", xalign=0.5, yalign=1.0))
+        background say_window_background
         xalign 0.5
         xfill True
         yalign gui.textbox_yalign
@@ -405,8 +409,16 @@ screen main_menu():
         use Phonescreen
 
     else:
+        $ lockscreen_time = format_phone_time()
+
         # Fond d'écran de verrouillage
         add "lock_wallpaper"
+
+        text lockscreen_time:
+            size 120
+            xalign 0.5
+            yalign 0.22
+            color "#ffffff"
 
         # Zone du slider en bas
         frame:
@@ -940,7 +952,11 @@ screen history():
     ## Avoid predicting this screen, as it can be very large.
     predict False
 
-    use game_menu(_("History"), scroll=("vpgrid" if gui.history_height else "viewport"), yinitial=1.0):
+    $ history_scroll_mode = "viewport"
+    if gui.history_height:
+        $ history_scroll_mode = "vpgrid"
+
+    use game_menu(_("History"), scroll=history_scroll_mode, yinitial=1.0):
 
         style_prefix "history"
 
@@ -975,6 +991,12 @@ screen history():
 
 define gui.history_allow_tags = { "alt", "noalt", "rt", "rb", "art" }
 
+init python:
+    if gui.history_text_xalign:
+        history_layout_mode = "subtitle"
+    else:
+        history_layout_mode = "tex"
+
 
 style history_window is empty
 
@@ -1006,7 +1028,7 @@ style history_text:
     xsize gui.history_text_width
     min_width gui.history_text_width
     text_align gui.history_text_xalign
-    layout ("subtitle" if gui.history_text_xalign else "tex")
+    layout history_layout_mode
 
 style history_label:
     xfill True
@@ -1412,6 +1434,12 @@ style nvl_dialogue is say_dialogue
 style nvl_button is button
 style nvl_button_text is button_text
 
+init python:
+    if gui.nvl_text_xalign:
+        nvl_layout_mode = "subtitle"
+    else:
+        nvl_layout_mode = "tex"
+
 style nvl_window:
     xfill True
     yfill True
@@ -1439,7 +1467,7 @@ style nvl_dialogue:
     xsize gui.nvl_text_width
     min_width gui.nvl_text_width
     text_align gui.nvl_text_xalign
-    layout ("subtitle" if gui.nvl_text_xalign else "tex")
+    layout nvl_layout_mode
 
 style nvl_thought:
     xpos gui.nvl_thought_xpos
@@ -1448,7 +1476,7 @@ style nvl_thought:
     xsize gui.nvl_thought_width
     min_width gui.nvl_thought_width
     text_align gui.nvl_thought_xalign
-    layout ("subtitle" if gui.nvl_text_xalign else "tex")
+    layout nvl_layout_mode
 
 style nvl_button:
     properties gui.button_properties("nvl_button")
