@@ -63,6 +63,13 @@ init python:
         except Exception as e:
             renpy.log("Autosave skipped: %r" % e)
 
+    def phone_after_load():
+        if store.phone_mode:
+            renpy.show_screen("Phonescreen")
+        renpy.restart_interaction()
+
+    config.after_load_callback = phone_after_load
+
     # ------------------------- Navigation --------------------------------------
 
     def set_active_app(app_id, add_history=True, clear_stack=False):
@@ -1581,7 +1588,8 @@ screen chat_image_viewer(image_path):
 
 screen app_saves():
     modal True
-    $ FilePageName("phone")
+    $ slot_bg_color = "#f6f5f1" if not dark_mode else "#23232b"
+    $ slot_border_color = "#d2d2cc" if not dark_mode else "#2f2f38"
 
     vbox:
         xfill True
@@ -1598,28 +1606,47 @@ screen app_saves():
             padding (40, 40)
 
             vbox:
-                spacing 15
+                spacing 20
 
                 for i in range(1, 11):  # 10 slots
-                    hbox:
-                        spacing 20
+                    $ exists = FileLoadable(i)
+
+                    frame:
+                        background Frame(Solid(slot_bg_color), 12, 12)
                         xfill True
+                        padding (20, 18)
 
-                        $ exists = FileLoadable(i)
+                        hbox:
+                            spacing 18
+                            xfill True
 
-                        if exists:
-                            text FileTime(i, format="%d/%m %H:%M") size 22
-                        else:
-                            text "Emplacement [i] vide" size 22
+                            frame:
+                                background Solid(slot_border_color)
+                                padding (6, 6)
+                                xysize (210, 130)
 
-                        null width 40
+                                add FileScreenshot(i) at scale_to_fit(198, 118)
 
-                        textbutton "Sauver ici":
-                            action FileSave(i)
+                            vbox:
+                                spacing 6
+                                xfill True
 
-                        if exists:
-                            textbutton "Charger":
-                                action FileLoad(i)
+                                text "Emplacement [i]" size 22
+                                if exists:
+                                    text FileTime(i, format="%d/%m %H:%M") size 20
+                                else:
+                                    text "Vide" size 20
+
+                            hbox:
+                                spacing 12
+                                xalign 1.0
+
+                                textbutton "Sauver":
+                                    action FileSave(i)
+
+                                textbutton "Charger":
+                                    action FileLoad(i)
+                                    sensitive exists
 
 #---------------------------- Settings ----------------------------------------
 
