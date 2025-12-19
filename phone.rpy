@@ -16,7 +16,11 @@ default eta_bar_hidden = False
 default phone_navbar_hidden = False
 default phone_deleted_messages = {}
 default phone_fullscreen_viewer = False
+default phone_over_chat = False
+default phone_user_scrolled_up = {}
+default phone_scroll_to_bottom = {}
 define eta_bar_height = 70
+define phone_scroll_threshold = 80
 define deleted_message_placeholder = _("Message supprimé")
 define deleted_message_rehide_delay = 4.0
 
@@ -58,6 +62,8 @@ init python:
         """Open a messenger channel while keeping navigation history."""
         store.phone_choice_armed = False
         set_active_app(channel_name, add_history=True)
+        if store.phone_config["auto_scroll"]:
+            store.phone_scroll_to_bottom[channel_name] = not store.phone_user_scrolled_up.get(channel_name, False)
 
         last_sender = None
 
@@ -340,6 +346,9 @@ init python:
             )
         )
 
+        if store.phone_config["auto_scroll"] and not store.phone_user_scrolled_up.get(channel_name, False):
+            store.phone_scroll_to_bottom[channel_name] = True
+
         if message_kind == 2:
             image_id = os.path.splitext(os.path.basename(message_text))[0]
             if image_id and image_id not in gallery_unlocked:
@@ -460,6 +469,8 @@ init python:
         _phone_global_message_counter = 0
         store.phone_intro_done = False
         store.phone_last_revealed_sender = {}
+        store.phone_user_scrolled_up = {}
+        store.phone_scroll_to_bottom = {}
 
         # aucun salon créé ici
         #create_phone_channel("maya_dm", "Maya", ["Maya", phone_config["phone_player_name"]], "avatars/maya_icon.png")
@@ -516,6 +527,16 @@ init python:
                 length (float, optional): The duration of the pause in seconds. Defaults to 1.0.
         """
         renpy.pause(length)
+
+    def phone_update_scroll_state(channel_name, yadjustment, threshold=phone_scroll_threshold):
+        if channel_name not in store.phone_user_scrolled_up:
+            store.phone_user_scrolled_up[channel_name] = False
+        if yadjustment is None:
+            return
+        if yadjustment.value < (yadjustment.range - threshold):
+            store.phone_user_scrolled_up[channel_name] = True
+        else:
+            store.phone_user_scrolled_up[channel_name] = False
 
     # hide the text box stuff when the phone is up
     def phone_start():
@@ -1059,7 +1080,11 @@ screen Phonescreen():
 screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
     modal True
 
-    if current_app != "messenger":
+    if (
+        current_app != "messenger"
+        and not phone_fullscreen_viewer
+        and not (phone_choice_options and phone_choice_channel == current_app)
+    ):
         key "mouseup_1" action Function(phone_reveal_next, current_app)
         key "dismiss" action Function(phone_reveal_next, current_app)
 
@@ -1169,6 +1194,8 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                     # --- CHAT DANS UNE CONVERSATION ---
                     $ yadj = ui.adjustment()
 
+                    timer 0.1 repeat True action Function(phone_update_scroll_state, current_app, yadj)
+
                     viewport:
                         id "message_viewport"
                         xfill True
@@ -1178,9 +1205,9 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                         mousewheel True
                         draggable True
 
-                        # do this once when it opens
-                        if phone_config["auto_scroll"]:
+                        if phone_scroll_to_bottom.get(current_app, False):
                             $ yadj.value = (yadj.range + 1000)
+                            $ phone_scroll_to_bottom[current_app] = False
 
 
                         fixed:
@@ -1217,8 +1244,8 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                                             if msg_id == latest_channel_id and not channel_seen_latest[current_app]:
                                                 $ channel_seen_latest[current_app] = True
                                                 $ channel_notifs[current_app] = False
-                                                if phone_config["auto_scroll"]:
-                                                    $ yadj.value = (yadj.range + 1000)
+                                                if phone_config["auto_scroll"] and not phone_user_scrolled_up.get(current_app, False):
+                                                    $ phone_scroll_to_bottom[current_app] = True
 
                                         # bulle et couleur selon MC / autre
                                         $ is_player_message = sender == phone_config["phone_player_name"]
@@ -1314,8 +1341,8 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                                                     at message_appear(anim_direction)
 
                                                 button:
-                                                    xfill True
-                                                    yfill True
+                                                    xsize image_x
+                                                    ysize image_y
                                                     background None
                                                     hover_background None
                                                     action ToggleScreen("chat_image_viewer", image_path=message_text)
