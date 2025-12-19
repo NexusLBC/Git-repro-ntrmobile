@@ -19,11 +19,7 @@ label start:
     $ advance_phone_time(8)
     $ send_phone_message(phone_config["phone_player_name"], "Marché conclu. J'enchaîne les notifs comme un pro du multitask.", "maya_dm", do_pause=False)
     $ send_phone_message("Maya", "Parfait. J'ai ajouté deux aperçus dans la galerie pour te motiver.", "maya_dm", do_pause=False)
-    if "cg_1" not in gallery_unlocked:
-        $ gallery_unlocked.append("cg_1")
     $ send_phone_message("Maya", "Le premier est juste un mood-board, l'autre c'est moi qui teste un angle miroir.", "maya_dm", do_pause=False)
-    if "cg_2" not in gallery_unlocked:
-        $ gallery_unlocked.append("cg_2")
     $ send_phone_message(phone_config["phone_player_name"], "Je vais tout regarder. Tu sais que j'aime les répétitions générales.", "maya_dm", do_pause=False)
     $ send_phone_message("Maya", "Parlant de répétitions, je veux aussi voir comment tu replies en situation stress. Challenge accepté ?", "maya_dm", do_pause=False)
     $ advance_phone_time(5)
