@@ -243,34 +243,12 @@ style choice_button_text is default:
 ## menus.
 
 screen quick_menu():
-
-    ## Ensure this appears on top of other screens.
-    zorder 100
-
-    if quick_menu:
-
-        hbox:
-            style_prefix "quick"
-
-            xalign 0.5
-            yalign 1.0
-
-            textbutton _("Back") action Rollback()
-            textbutton _("History") action ShowMenu('history')
-            textbutton _("Skip") action Skip() alternate Skip(fast=True, confirm=True)
-            textbutton _("Auto") action Preference("auto-forward", "toggle")
-            textbutton _("Save") action ShowMenu('save')
-            textbutton _("Q.Save") action QuickSave()
-            textbutton _("Q.Load") action QuickLoad()
-            textbutton _("Prefs") action ShowMenu('preferences')
+    pass
 
 
 ## This code ensures that the quick_menu screen is displayed in-game, whenever
 ## the player has not explicitly hidden the interface.
-init python:
-    config.overlay_screens.append("quick_menu")
-
-default quick_menu = True
+default quick_menu = False
 
 style quick_button is default
 style quick_button_text is button_text
@@ -412,6 +390,7 @@ screen main_menu():
         $ lockscreen_time = format_phone_time()
 
         # Fond d'écran de verrouillage
+        use eta_bar(show_time=False)
         add "lock_wallpaper"
 
         text lockscreen_time:
@@ -1500,21 +1479,7 @@ style pref_vbox:
 ## that uses fewer and bigger buttons that are easier to touch.
 screen quick_menu():
     variant "touch"
-
-    zorder 100
-
-    if quick_menu:
-
-        hbox:
-            style_prefix "quick"
-
-            xalign 0.5
-            yalign 1.0
-
-            textbutton _("Back") action Rollback()
-            textbutton _("Skip") action Skip() alternate Skip(fast=True, confirm=True)
-            textbutton _("Auto") action Preference("auto-forward", "toggle")
-            textbutton _("Menu") action ShowMenu()
+    pass
 
 
 style window:

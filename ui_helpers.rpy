@@ -17,15 +17,11 @@ init python:
     def get_empty_state_color(is_dark_mode):
         return "#222222" if not is_dark_mode else "#DDDDDD"
 
-    def get_sender_name_color(is_player_message, is_dark_mode):
-        if is_player_message:
-            return "#053ffd"
-        return get_channel_name_color(is_dark_mode)
+    def get_sender_name_color(is_dark_mode):
+        return "#000000" if not is_dark_mode else "#FFFFFF"
 
     def get_eta_bar_background(is_dark_mode):
-        if is_dark_mode:
-            return "#1a1a1acc"
-        return "#f5f5f5cc"
+        return "#000000"
 
     def get_nav_background(current_app):
         if current_app == "home":
