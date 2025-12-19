@@ -845,7 +845,7 @@ style phone_navbar_frame is empty:
 
 style phone_content_frame is empty:
     background None
-    padding 0
+    padding (0, 0)
 
 style eta_bar_frame is empty:
     background None
