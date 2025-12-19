@@ -1784,12 +1784,3 @@ screen app_settings():
                         textbutton _("Mute All"):
                             action Preference("all mute", "toggle")
                             style "mute_all_button"
-
-                # --- ANCIEN RÉGLAGES (MENU PREFS CLASSIQUE) ---
-
-                null height 120
-
-                vbox:
-                    spacing 50
-                    textbutton ("ancien réglages"):
-                        action ShowMenu("preferences")
