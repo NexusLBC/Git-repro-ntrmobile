@@ -15,6 +15,7 @@ default phone_animated_global_ids = {}
 default eta_bar_hidden = False
 default phone_navbar_hidden = False
 default phone_deleted_messages = {}
+default phone_fullscreen_viewer = False
 define eta_bar_height = 70
 define deleted_message_placeholder = _("Message supprimé")
 define deleted_message_rehide_delay = 4.0
@@ -953,14 +954,16 @@ screen phone_navbar():
                     action NullAction()
 
 screen eta_bar(show_time=True):
-    zorder 150
+    zorder 200
 
-    if eta_bar_hidden:
+    if eta_bar_hidden or phone_fullscreen_viewer:
         null height 0
     else:
-        $ eta_bar_background = get_eta_bar_background(dark_mode)
+        $ eta_bar_background = "#000000"
         $ eta_bar_text_color = "#FFFFFF"
         $ eta_bar_time = format_phone_time()
+        $ connection_icon = "gui/connection.png" if renpy.loadable("gui/connection.png") else Solid("#000000")
+        $ battery_icon = "gui/battery.png" if renpy.loadable("gui/battery.png") else Solid("#000000")
 
         frame:
             style "eta_bar_frame"
@@ -986,10 +989,10 @@ screen eta_bar(show_time=True):
                 hbox:
                     spacing 20
                     yalign 0.5
-                    add "gui/connection.png":
+                    add connection_icon:
                         yalign 0.5
                         at scale_to_fit(42, 42)
-                    add "gui/battery.png":
+                    add battery_icon:
                         yalign 0.5
                         at scale_to_fit(42, 42)
 
@@ -1005,7 +1008,7 @@ screen Phonescreen():
         python:
             initialize_phone_intro()
 
-    use eta_bar
+    use eta_bar(show_time=True)
 
     if current_app =="home":
 
@@ -1468,8 +1471,8 @@ screen gallery_viewer(img_id):
     modal True
     zorder 300
 
-    on "show" action [SetVariable("eta_bar_hidden", True), SetVariable("phone_navbar_hidden", True)]
-    on "hide" action [SetVariable("eta_bar_hidden", False), SetVariable("phone_navbar_hidden", False)]
+    on "show" action [SetVariable("phone_fullscreen_viewer", True), SetVariable("phone_navbar_hidden", True)]
+    on "hide" action [SetVariable("phone_fullscreen_viewer", False), SetVariable("phone_navbar_hidden", False)]
 
     $ viewer_image_path = "images/cg/%s.png" % img_id
     $ viewer_displayable = viewer_image_path
@@ -1492,8 +1495,8 @@ screen chat_image_viewer(image_path):
     modal True
     zorder 300
 
-    on "show" action [SetVariable("eta_bar_hidden", True), SetVariable("phone_navbar_hidden", True)]
-    on "hide" action [SetVariable("eta_bar_hidden", False), SetVariable("phone_navbar_hidden", False)]
+    on "show" action [SetVariable("phone_fullscreen_viewer", True), SetVariable("phone_navbar_hidden", True)]
+    on "hide" action [SetVariable("phone_fullscreen_viewer", False), SetVariable("phone_navbar_hidden", False)]
 
     $ viewer_displayable = image_path
     if not renpy.loadable(image_path):
