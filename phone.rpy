@@ -29,6 +29,34 @@ init python:
     import os
     import re
 
+    def phone_render_emojis(text):
+        if not text:
+            return text
+
+        def replace_tag(match):
+            tag = match.group(1)
+            if tag.startswith("emoji_"):
+                image_path = "images/emojis/%s.png" % tag
+                if renpy.loadable(image_path):
+                    return "{image=%s}" % image_path
+                return ""
+            return ""
+
+        return re.sub(r"<([^>]+)>", replace_tag, text)
+
+    def phone_strip_text_tags(text):
+        if not text:
+            return text
+        text = re.sub(r"<[^>]+>", "", text)
+        return re.sub(r"{[^}]+}", "", text)
+
+    def phone_normalize_image_path(image_text):
+        if not image_text:
+            return image_text
+        if ".png" not in image_text:
+            return "images/cg/%s.png" % image_text
+        return image_text
+
     def phone_try_autosave():
         try:
             renpy.force_autosave()
@@ -269,6 +297,12 @@ init python:
         if channel_name not in phone_channels:
             renpy.log("Tried to send message to non-existent channel: " + channel_name)
             return
+
+        # --- Normalisation des messages ---
+        if message_kind in (0, 3, 4):
+            message_text = phone_render_emojis(message_text)
+        elif message_kind == 2:
+            message_text = phone_normalize_image_path(message_text)
 
         # --- Son (sauf timestamps) ---
         if message_kind != 1:
@@ -632,8 +666,8 @@ init python:
                 message_text = last_message_tuple[2]
                 message_kind = last_message_tuple[3]
                 preview_text = message_text
-                if message_kind == 3: # has emojis, get rid of them with fire
-                    preview_text = re.sub(r"<[^>]+>", "", preview_text).strip()
+                if message_kind in (0, 3, 4):
+                    preview_text = phone_strip_text_tags(preview_text).strip()
                 # prepend sender if it's a group chat and not from the player
                 is_group = phone_channel_data.get(channel_name, {}).get("is_group", False)
                 if is_group and sender != phone_config["phone_player_name"]:
@@ -1328,6 +1362,8 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
 
                                         # photo kind = 2
                                         elif message_kind == 2:
+                                            $ preview_width = bubble_width_limit
+                                            $ preview_height = int(preview_width * 16 / 9)
                                             frame:
                                                 if is_player_message:
                                                     xpos 1.0 - msg_align xanchor 1.0
@@ -1341,12 +1377,12 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                                                     at message_appear(anim_direction)
 
                                                 button:
-                                                    xsize image_x
-                                                    ysize image_y
+                                                    xsize preview_width
+                                                    ysize preview_height
                                                     background None
                                                     hover_background None
                                                     action ToggleScreen("chat_image_viewer", image_path=message_text)
-                                                    add Image(message_text) at scale_to_fit(image_x, image_y)
+                                                    add Image(message_text) at scale_to_fit(preview_width, preview_height)
                                             $ last_sender_in_chat_view = sender
 
                                         # texte avec emojis kind = 3
