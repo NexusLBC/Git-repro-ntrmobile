@@ -19,6 +19,19 @@ default phone_fullscreen_viewer = False
 default phone_over_chat = False
 default phone_user_scrolled_up = {}
 default phone_scroll_to_bottom = {}
+default phone_loaded_from_save = False
+default phone_channel_data = {}
+default phone_channels = {}
+default channel_last_message_id = {}
+default channel_seen_latest = {}
+default channel_notifs = {}
+default channel_visible = {}
+default channel_latest_global_id = {}
+default phone_pending = {}
+default disable_phone_menu_switch = False
+default phone_choice_options = []
+default phone_choice_channel = None
+default _phone_global_message_counter = 0
 define eta_bar_height = 70
 define phone_navbar_height = 120
 define phone_scroll_threshold = 80
@@ -65,6 +78,7 @@ init python:
             renpy.log("Autosave skipped: %r" % e)
 
     def phone_after_load():
+        store.phone_loaded_from_save = True
         if store.phone_mode:
             renpy.show_screen("Phonescreen")
         renpy.restart_interaction()
@@ -271,24 +285,6 @@ init python:
     }
 
     # ------------------------- Variables --------------------------------------
-
-    phone_channel_data = {} # {channel_name: {"display_name": "...", "icon": "...", "participants": [], "is_group": False}}
-    phone_channels = {}  # {channel_name: [(id, sender, message_string, kind, ...), ...]}
-    channel_last_message_id = {} # {channel_name: last_id}
-    channel_seen_latest = {} # {channel_name: seen_status} (this could be more intricate to track if EACH message was seen, but that's overkill)
-    channel_notifs = {} # {channel_name: notification_status} (True/False)
-    channel_visible = {} # {channel_name: visible_status} (True/False)
-    current_app = "home" # where when the phone starts it should start at
-    disable_phone_menu_switch = False # lock back button, basically
-    phone_choice_options = [] # this will hold the currently active choices
-    phone_choice_channel = None  # this holds the channel that the above choice aligns to (one at a time)
-    channel_latest_global_id = {} # latest global channel id
-    _phone_global_message_counter = 0  # latest global message counter
-    phone_pending = {}  # {channel_name: [message_data, ...]}
-    phone_intro_done = False
-
-
-    # ------------------------- Variables 2 ------------------------------------
 
     # creates a new phone channel
     def create_phone_channel(channel_id, display_name, participants, icon_path, is_group=False):
@@ -909,7 +905,7 @@ style phone_message_style is default:
 style phone_sender_name_style is default:
     size 18
     yoffset 2
-    ypadding 0
+    ypadding (0, 0)
     yalign 1.0
     font "gui/HelveticaNeueLTStd-Bd.otf"
 
