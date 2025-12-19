@@ -20,6 +20,7 @@ default phone_over_chat = False
 default phone_user_scrolled_up = {}
 default phone_scroll_to_bottom = {}
 define eta_bar_height = 70
+define phone_navbar_height = 120
 define phone_scroll_threshold = 80
 define deleted_message_placeholder = _("Message supprimé")
 define deleted_message_rehide_delay = 4.0
@@ -1007,7 +1008,9 @@ screen phone_navbar():
             style "phone_navbar_frame"
             align (0.5, 1.0)
             xfill True
-            ysize 120
+            ysize phone_navbar_height
+            yminimum phone_navbar_height
+            ymaximum phone_navbar_height
             padding (0, 20)
 
             $ nav_bg = get_nav_background(current_app)
