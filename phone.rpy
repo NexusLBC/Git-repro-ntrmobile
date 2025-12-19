@@ -130,8 +130,28 @@ init python:
             return store.phone_channel_data[store.current_app]["display_name"]
         return default_title
 
+    def phone_build_app_buttons(raw_buttons):
+        available_buttons = []
+        for app in raw_buttons:
+            image_template = app.get("image")
+            if not image_template:
+                continue
+
+            idle_path = (
+                image_template % "idle"
+                if "%s" in image_template
+                else image_template
+            )
+
+            if not renpy.loadable(idle_path):
+                continue
+
+            available_buttons.append(app)
+
+        return available_buttons
+
     #Liste des applis (message, save, galerie, patreon, itch, subsstar, settings)
-    app_buttons = [
+    app_buttons = phone_build_app_buttons([
         { # Messenger
             "image": "gui/buttons/messenger_%s.png",
             "action": Function(open_phone_app, "messenger"),
@@ -162,8 +182,16 @@ init python:
         },
 
         # Subscribestar
+        { # Placeholder 1 (ignored until assets exist)
+            "image": "gui/buttons/subscribestar_%s.png",
+            "action": NullAction(),
+        },
+        { # Placeholder 2 (ignored until assets exist)
+            "image": "gui/buttons/placeholder_%s.png",
+            "action": NullAction(),
+        },
 
-    ]
+    ])
 
     # Mapping of app identifiers to their corresponding screens.
     phone_screen_routes = {
