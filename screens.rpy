@@ -383,8 +383,8 @@ screen main_menu():
         $ lockscreen_time = format_phone_time()
 
         # Fond d'écran de verrouillage
-        use eta_bar(show_time=False)
         add "lock_wallpaper"
+        use eta_bar(show_time=False)
 
         text lockscreen_time:
             size 120

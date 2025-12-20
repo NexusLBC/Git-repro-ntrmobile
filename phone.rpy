@@ -35,7 +35,7 @@ default _phone_global_message_counter = 0
 default gallery_all = ["cg_1", "cg_2", "cg_3", "cg_4", "cg_5", "cg_6"]
 default gallery_unlocked = []   # on ajoute les IDs quand on les débloque
 define eta_bar_height = 70
-define phone_navbar_height = 120
+define phone_navbar_height = 160
 define phone_scroll_threshold = 80
 define deleted_message_placeholder = _("Message supprimé")
 define deleted_message_rehide_delay = 4.0
@@ -620,6 +620,13 @@ init python:
         else:
             store.phone_user_scrolled_up[channel_name] = False
 
+    def phone_scroll_to_bottom_now(channel_name, yadjustment):
+        try:
+            yadjustment.value = yadjustment.range + 10000
+        except Exception:
+            pass
+        store.phone_scroll_to_bottom[channel_name] = False
+
     # hide the text box stuff when the phone is up
     def phone_start():
         """ Activates phone mode, preparing the UI for the phone screen.
@@ -967,7 +974,7 @@ style phone_content_frame is empty:
 
 style eta_bar_frame is empty:
     background None
-    padding (12, 24)
+    padding (16, 10)
 
 screen app_header(title, app_id, icon_path=None):
 
@@ -1023,7 +1030,7 @@ screen phone_navbar():
             ysize phone_navbar_height
             yminimum phone_navbar_height
             ymaximum phone_navbar_height
-            padding (0, 20)
+            padding (0, 0)
 
             $ nav_bg = get_nav_background(current_app)
             add Solid(nav_bg)
@@ -1031,7 +1038,7 @@ screen phone_navbar():
 
             grid 3 1:
                 xfill True
-                yfill False
+                yfill True
 
                 # Bouton "Retour"
                 imagebutton:
@@ -1113,8 +1120,6 @@ screen Phonescreen():
         python:
             initialize_phone_intro()
 
-    use eta_bar(show_time=True)
-
     if current_app =="home":
 
         add current_background
@@ -1123,8 +1128,6 @@ screen Phonescreen():
             xfill True
             yfill True
             spacing 0
-
-            null height eta_bar_height
 
             grid 4 5:
                 xalign 0.5
@@ -1158,6 +1161,7 @@ screen Phonescreen():
         use expression phone_screen_routes[current_app]
 
     use phone_navbar
+    use eta_bar(show_time=True)
 
 #---------------------------- Messenger ----------------------------------------
 
@@ -1169,8 +1173,11 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
         and not phone_fullscreen_viewer
         and not (phone_choice_options and phone_choice_channel == current_app)
     ):
+        key "mousedown_1" action Function(phone_reveal_next, current_app)
         key "mouseup_1" action Function(phone_reveal_next, current_app)
+        key "K_MOUSE1" action Function(phone_reveal_next, current_app)
         key "dismiss" action Function(phone_reveal_next, current_app)
+        key "K_SPACE" action Function(phone_reveal_next, current_app)
 
     frame:
         style "phone_content_frame"
@@ -1189,8 +1196,6 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
             xfill True
             yfill True
 
-            null height eta_bar_height
-
             # Header adaptatif
             $ messenger_header_title = "Messenger"
             if current_app in phone_channels:
@@ -1200,9 +1205,10 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
             # CORPS DE L'APP
             frame:
                 background app_body_bg()
+                key_events True
                 xfill True
                 yfill True
-                padding (30, 30, 30, 140)  # on laisse de la place pour la nav bar en bas
+                padding (30, eta_bar_height + 30, 30, phone_navbar_height + 30)
 
                 if current_app == "messenger":
                     # --- LISTE DES CONVERSATIONS ---
@@ -1290,8 +1296,7 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                         draggable True
 
                         if phone_scroll_to_bottom.get(current_app, False):
-                            $ yadj.value = (yadj.range + 1000)
-                            $ phone_scroll_to_bottom[current_app] = False
+                            timer 0.01 action Function(phone_scroll_to_bottom_now, current_app, yadj)
 
 
                         fixed:
@@ -1533,15 +1538,13 @@ screen app_gallery():
         xfill True
         yfill True
 
-        null height eta_bar_height
-
         use app_header("Galerie", "gallery")
 
         frame:
             background app_body_bg()
             xfill True
             yfill True
-            padding (30, 30)
+            padding (30, eta_bar_height + 30, 30, phone_navbar_height + 30)
 
             if not gallery_all:
                 text "Aucune image disponible." size 26
@@ -1635,58 +1638,64 @@ screen app_saves():
         xfill True
         yfill True
 
-        null height eta_bar_height
-
         use app_header("Sauvegardes", "saves")
 
         frame:
             background app_body_bg()
             xfill True
             yfill True
-            padding (40, 40)
+            padding (40, 40, 40, phone_navbar_height + 40)
 
-            vbox:
-                spacing 20
+            viewport:
+                xfill True
+                yfill True
+                scrollbars None
+                mousewheel True
+                draggable True
 
-                for i in range(1, 11):  # 10 slots
-                    $ exists = FileLoadable(i)
+                vbox:
+                    spacing 20
+                    xfill True
 
-                    frame:
-                        background Frame(Solid(slot_bg_color), 12, 12)
-                        xfill True
-                        padding (20, 18)
+                    for i in range(1, 11):  # 10 slots
+                        $ exists = FileLoadable(i)
 
-                        hbox:
-                            spacing 18
+                        frame:
+                            background Frame(Solid(slot_bg_color), 12, 12)
                             xfill True
-
-                            frame:
-                                background Solid(slot_border_color)
-                                padding (6, 6)
-                                xysize (210, 130)
-
-                                add FileScreenshot(i) at scale_to_fit(198, 118)
-
-                            vbox:
-                                spacing 6
-                                xfill True
-
-                                text "Emplacement [i]" size 22
-                                if exists:
-                                    text FileTime(i, format="%d/%m %H:%M") size 20
-                                else:
-                                    text "Vide" size 20
+                            padding (20, 18)
 
                             hbox:
-                                spacing 12
-                                xalign 1.0
+                                spacing 18
+                                xfill True
 
-                                textbutton "Sauver":
-                                    action FileSave(i)
+                                frame:
+                                    background Solid(slot_border_color)
+                                    padding (6, 6)
+                                    xysize (210, 130)
 
-                                textbutton "Charger":
-                                    action FileLoad(i)
-                                    sensitive exists
+                                    add FileScreenshot(i) at scale_to_fit(198, 118)
+
+                                vbox:
+                                    spacing 6
+                                    xfill True
+
+                                    text "Emplacement [i]" size 22
+                                    if exists:
+                                        text FileTime(i, format="%d/%m %H:%M") size 20
+                                    else:
+                                        text "Vide" size 20
+
+                                hbox:
+                                    spacing 12
+                                    xalign 1.0
+
+                                    textbutton "Sauver":
+                                        action FileSave(i)
+
+                                    textbutton "Charger":
+                                        action FileLoad(i)
+                                        sensitive exists
 
 #---------------------------- Settings ----------------------------------------
 
@@ -1697,15 +1706,13 @@ screen app_settings():
         xfill True
         yfill True
 
-        null height eta_bar_height
-
         use app_header("Réglages", "settings")
 
         frame:
             background app_body_bg()
             xfill True
             yfill True
-            padding (30, 40)
+            padding (30, eta_bar_height + 30, 30, phone_navbar_height + 30)
 
             $ text_color = get_text_color(dark_mode)
             $ selected_text_color = get_selected_text_color(dark_mode)
