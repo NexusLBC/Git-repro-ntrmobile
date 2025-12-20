@@ -32,11 +32,49 @@ default disable_phone_menu_switch = False
 default phone_choice_options = []
 default phone_choice_channel = None
 default _phone_global_message_counter = 0
+default gallery_all = ["cg_1", "cg_2", "cg_3", "cg_4", "cg_5", "cg_6"]
+default gallery_unlocked = []   # on ajoute les IDs quand on les débloque
 define eta_bar_height = 70
 define phone_navbar_height = 120
 define phone_scroll_threshold = 80
 define deleted_message_placeholder = _("Message supprimé")
 define deleted_message_rehide_delay = 4.0
+define phone_config = {
+    # Sound Configuration
+    "play_sound_send": True,
+    "play_sound_receive": True,
+    "no_sound_current_chat": False, # For incoming messages, only play if not viewing the chat
+    # String Configurations
+    "preview_no_message": "Empty chat...",
+    "channels_title": "Messages",
+    "history_timestamp_prefix": "Time:",
+    "phone_player_name": "Me",
+    "group_added": "{adder} added {participant} to the group.",
+    "group_joined": "{participant} joined the group.",
+    "group_left": "{participant} left the group.",
+    # UI Configurations
+    "message_font_size": 30,
+    "choice_font_size": 24,
+    "timestamp_font_size": 20,
+    "auto_scroll": True,
+    "show_sender_in_preview": True,
+    "default_icon": "gui/icon.png",
+    "user_colour": "#FFFFFF",
+    "character_colour": "#000000",
+    "timestamp_colour": "#000000",
+    "sort_channels_by_latest": True,
+    "message_align": 0.025,
+    "preview_max_length": 25,
+    "emojis": {
+        "size": 32,
+    },
+    # Gameplay Configurations
+    "pause": { # no pause = messages will not wait for user time or user input before sending the next one
+        "do_pause": True, # should we wait for a click to send the next message? like traditional dialogue
+        "pause_time": False, # if we want to pause, should we auto-continue after a set amount of time? if false, just wait for a click
+        "pause_length": 1.0 # if using pause_time, how long do we wait?
+    }
+}
 
 
 init python:
@@ -130,7 +168,7 @@ init python:
         """Open a messenger channel while keeping navigation history."""
         store.phone_choice_armed = False
         set_active_app(channel_name, add_history=True)
-        if store.phone_config["auto_scroll"]:
+        if phone_config["auto_scroll"]:
             store.phone_scroll_to_bottom[channel_name] = not store.phone_user_scrolled_up.get(channel_name, False)
 
         last_sender = None
@@ -262,46 +300,6 @@ init python:
         else:
             return "#2b2b33"
 
-    # ------------------------- Phone Config ---------------------------------------
-
-    # configurable variables for easy plug-and-play
-    phone_config = {
-        # Sound Configuration
-        "play_sound_send": True,
-        "play_sound_receive": True,
-        "no_sound_current_chat": False, # For incoming messages, only play if not viewing the chat
-        # String Configurations
-        "preview_no_message": "Empty chat...",
-        "channels_title": "Messages",
-        "history_timestamp_prefix": "Time:",
-        "phone_player_name": "Me",
-        "group_added": "{adder} added {participant} to the group.",
-        "group_joined": "{participant} joined the group.",
-        "group_left": "{participant} left the group.",
-        # UI Configurations
-        "message_font_size": 30,
-        "choice_font_size": 24,
-        "timestamp_font_size": 20,
-        "auto_scroll": True,
-        "show_sender_in_preview": True,
-        "default_icon": "gui/icon.png",
-        "user_colour": "#FFFFFF",
-        "character_colour": "#000000",
-        "timestamp_colour": "#000000",
-        "sort_channels_by_latest": True,
-        "message_align": 0.025,
-        "preview_max_length": 25,
-        "emojis": {
-            "size": 32,
-        },
-        # Gameplay Configurations
-        "pause": { # no pause = messages will not wait for user time or user input before sending the next one
-            "do_pause": True, # should we wait for a click to send the next message? like traditional dialogue
-            "pause_time": False, # if we want to pause, should we auto-continue after a set amount of time? if false, just wait for a click
-            "pause_length": 1.0 # if using pause_time, how long do we wait?
-        }
-    }
-
     # ------------------------- Variables --------------------------------------
 
     # creates a new phone channel
@@ -403,8 +401,8 @@ init python:
 
         if message_kind == 4:
             register_deleted_message(channel_name, msg_id, original_deleted_text)
-            message_text = store.deleted_message_placeholder
-            summary_alt = store.deleted_message_placeholder
+            message_text = deleted_message_placeholder
+            summary_alt = deleted_message_placeholder
 
         # Quand on révèle un message, on force le refresh UI
         renpy.restart_interaction()
@@ -430,7 +428,7 @@ init python:
             )
         )
 
-        if store.phone_config["auto_scroll"] and not store.phone_user_scrolled_up.get(channel_name, False):
+        if phone_config["auto_scroll"] and not store.phone_user_scrolled_up.get(channel_name, False):
             store.phone_scroll_to_bottom[channel_name] = True
 
         if message_kind == 2:
@@ -463,7 +461,7 @@ init python:
             narrator.add_history(
                 kind="adv",
                 who=sender,
-                what=store.deleted_message_placeholder,
+                what=deleted_message_placeholder,
             )
 
         renpy.checkpoint()
@@ -882,7 +880,7 @@ init python:
             return
 
         state["revealed"] = False
-        _update_deleted_message_text(channel_name, msg_id, store.deleted_message_placeholder)
+        _update_deleted_message_text(channel_name, msg_id, deleted_message_placeholder)
 
     def toggle_deleted_message(channel_name, msg_id):
         state = store.phone_deleted_messages.get((channel_name, msg_id))
@@ -1459,7 +1457,7 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
 
                                         elif message_kind == 4:
                                             $ deleted_state = phone_deleted_messages.get((current_app, msg_id), {"revealed": False, "original": message_text})
-                                            $ deleted_font = "gui/HelveticaNeueLTStd-It.otf" if message_text == store.deleted_message_placeholder else "gui/HelveticaNeueLTStd-Lt.otf"
+                                            $ deleted_font = "gui/HelveticaNeueLTStd-It.otf" if message_text == deleted_message_placeholder else "gui/HelveticaNeueLTStd-Lt.otf"
                                             button:
                                                 if is_player_message:
                                                     xpos 1.0 - msg_align xanchor 1.0
@@ -1524,9 +1522,6 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
 
 
 #---------------------------- Gallery ----------------------------------------
-
-default gallery_all = ["cg_1", "cg_2", "cg_3", "cg_4", "cg_5", "cg_6"]
-default gallery_unlocked = []   # on ajoute les IDs quand on les débloque
 
 # débloquer une image dans l'histoire :
 #   $ gallery_unlocked.append("cg1")
