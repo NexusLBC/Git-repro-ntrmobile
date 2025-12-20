@@ -78,12 +78,30 @@ init python:
             renpy.log("Autosave skipped: %r" % e)
 
     def phone_after_load():
-        store.phone_loaded_from_save = True
-        if store.phone_mode:
-            renpy.show_screen("Phonescreen")
-        renpy.restart_interaction()
+        # Important: don't force current_app or reset dark_mode.
+        # Only refresh UI.
+        try:
+            renpy.restart_interaction()
+        except Exception:
+            pass
 
-    config.after_load_callback = phone_after_load
+    # Register after-load callback in a version-safe way.
+    try:
+        # Ren'Py 7.x/8.x: list of callbacks
+        if hasattr(config, "after_load_callbacks"):
+            if phone_after_load not in config.after_load_callbacks:
+                config.after_load_callbacks.append(phone_after_load)
+        # Some builds expose a register function
+        elif hasattr(renpy, "register_after_load"):
+            renpy.register_after_load(phone_after_load)
+        else:
+            # Nothing available: keep game running without after-load hook
+            pass
+    except Exception as e:
+        try:
+            renpy.log("after_load hook registration failed: %r" % e)
+        except Exception:
+            pass
 
     # ------------------------- Navigation --------------------------------------
 
