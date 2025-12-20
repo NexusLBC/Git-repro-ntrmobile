@@ -879,16 +879,17 @@ init python:
             return
 
         state["revealed"] = True
+        state["fresh"] = False
         _update_deleted_message_text(channel_name, msg_id, state["original"])
 
     def hide_deleted_message(channel_name, msg_id):
         state = store.phone_deleted_messages.get((channel_name, msg_id))
-        state["revealed"] = False
-        state["fresh"] = False
+
         if not state:
             return
 
         state["revealed"] = False
+        state["fresh"] = False
         _update_deleted_message_text(channel_name, msg_id, deleted_message_placeholder)
 
     def toggle_deleted_message(channel_name, msg_id):
@@ -1171,14 +1172,6 @@ screen Phonescreen():
 screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
     modal True
 
-    if (
-        current_app != "messenger"
-        and not phone_fullscreen_viewer
-        and not (phone_choice_options and phone_choice_channel == current_app)
-    ):
-        key "mousedown_1" action Function(phone_reveal_next, current_app)
-        key "K_SPACE" action Function(phone_reveal_next, current_app)
-
     frame:
         style "phone_content_frame"
         xfill True
@@ -1285,113 +1278,104 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
 
                     timer 0.1 repeat True action Function(phone_update_scroll_state, current_app, yadj)
 
-                    viewport:
-                        id "message_viewport"
+                    if auto_timer_enabled and phone_should_auto_advance(current_app):
+                        timer phone_chat_auto_delay action Function(phone_reveal_next, current_app)
+
+                    $ has_pending = bool(phone_pending.get(current_app))
+
+                    fixed:
                         xfill True
                         yfill True
-                        yadjustment yadj
-                        scrollbars None
-                        mousewheel True
-                        draggable True
 
-                        if phone_scroll_to_bottom.get(current_app, False):
-                            timer 0.01 action Function(phone_scroll_to_bottom_now, current_app, yadj)
-
-                        # AUTO MODE : révèle automatiquement les messages en attente
-                        if auto_timer_enabled and phone_should_auto_advance(current_app):
-                            timer phone_chat_auto_delay action Function(phone_reveal_next, current_app)
-                    
-                        $ has_pending = bool(phone_pending.get(current_app))
-
-                        fixed:
-                            xfill True
-                            yfill True
-
-                            if has_pending and not phone_fullscreen_viewer and not (phone_choice_options and phone_choice_channel == current_app):
-                                button:
-                                    xfill True
-                                    yfill True
-                                    background None
-                                    hover_background None
-                                    action Function(phone_reveal_next, current_app)
-                            viewport:
-                                id "message_viewport"
+                        if has_pending and not phone_fullscreen_viewer and not (phone_choice_options and phone_choice_channel == current_app):
+                            button:
                                 xfill True
                                 yfill True
-                                yadjustment yadj
-                                scrollbars None
-                                mousewheel True
-                                draggable True
-                            
-                                vbox:
-                                    spacing 8
-                                    xfill True
+                                background None
+                                hover_background None
+                                action Function(phone_reveal_next, current_app)
 
-                                    if current_app in phone_channels:
+                        viewport:
+                            id "message_viewport"
+                            xfill True
+                            yfill True
+                            yadjustment yadj
+                            scrollbars None
+                            mousewheel True
+                            draggable True
 
-                                        $ latest_channel_id = channel_last_message_id.get(current_app, 0)
-                                        $ last_sender_in_chat_view = None
-                                        $ mc_avatar_path = get_mc_avatar_path()
-                                        $ bubble_width_limit = bubble_max_width()
+                            if phone_scroll_to_bottom.get(current_app, False):
+                                timer 0.01 action Function(phone_scroll_to_bottom_now, current_app, yadj)
 
-                                        # display all messages
-                                        for message_data in phone_channels[current_app]:
-                                            $ msg_id, sender, message_text, message_kind, current_global_id, summary_alt, image_x, image_y = message_data
+                            vbox:
+                                spacing 8
+                                xfill True
 
-                                            if current_app not in phone_animated_global_ids:
-                                                $ phone_animated_global_ids[current_app] = []
+                                if current_app in phone_channels:
 
-                                            $ should_animate = False
-                                            if message_kind in (0, 2, 3, 4) and current_global_id not in phone_animated_global_ids[current_app]:
-                                                $ should_animate = True
-                                                $ phone_animated_global_ids[current_app].append(current_global_id)
+                                    $ latest_channel_id = channel_last_message_id.get(current_app, 0)
+                                    $ last_sender_in_chat_view = None
+                                    $ mc_avatar_path = get_mc_avatar_path()
+                                    $ bubble_width_limit = bubble_max_width()
 
-                                                if msg_id == latest_channel_id and not channel_seen_latest[current_app]:
-                                                    $ channel_seen_latest[current_app] = True
-                                                    $ channel_notifs[current_app] = False
-                                                    if phone_config["auto_scroll"] and not phone_user_scrolled_up.get(current_app, False):
-                                                        $ phone_scroll_to_bottom[current_app] = True
+                                    # display all messages
+                                    for message_data in phone_channels[current_app]:
+                                        $ msg_id, sender, message_text, message_kind, current_global_id, summary_alt, image_x, image_y = message_data
 
-                                            # bulle et couleur selon MC / autre
-                                            $ is_player_message = sender == phone_config["phone_player_name"]
-                                            if is_player_message:
-                                                $ msg_frame = "gui/send_frame.png"
-                                                $ text_colour = "#FFFFFF"
-                                                $ anim_direction = 1
-                                            else:
-                                                $ msg_frame = "gui/received_frame.png"
-                                                $ text_colour = "#FFFFFF"
-                                                $ anim_direction = -1
+                                        if current_app not in phone_animated_global_ids:
+                                            $ phone_animated_global_ids[current_app] = []
 
-                                            $ msg_align = phone_config["message_align"]
-                                            if is_player_message:
-                                                $ header_icon = mc_avatar_path
-                                                $ header_align = 1.0 - msg_align
-                                            else:
-                                                $ header_icon = phone_channel_data[current_app]["icon"]
-                                                $ header_align = msg_align
-                                            $ name_colour = get_sender_name_color(dark_mode)
+                                        $ should_animate = False
+                                        if message_kind in (0, 2, 3, 4) and current_global_id not in phone_animated_global_ids[current_app]:
+                                            $ should_animate = True
+                                            $ phone_animated_global_ids[current_app].append(current_global_id)
 
-                                            if message_kind in (0, 2, 3, 4) and sender != last_sender_in_chat_view:
-                                                hbox:
-                                                    xalign header_align
-                                                    if is_player_message:
-                                                        xanchor 1.0
-                                                    else:
-                                                        xanchor 0.0
-                                                    spacing 10
-                                                    if not is_player_message and header_icon:
-                                                        add header_icon:
-                                                            xysize (56, 56)
-                                                            yalign 0.5
-                                                    text sender:
-                                                        style "phone_sender_name_style"
-                                                        color name_colour
+                                            if msg_id == latest_channel_id and not channel_seen_latest[current_app]:
+                                                $ channel_seen_latest[current_app] = True
+                                                $ channel_notifs[current_app] = False
+                                                if phone_config["auto_scroll"] and not phone_user_scrolled_up.get(current_app, False):
+                                                    $ phone_scroll_to_bottom[current_app] = True
+
+                                        # bulle et couleur selon MC / autre
+                                        $ is_player_message = sender == phone_config["phone_player_name"]
+                                        if is_player_message:
+                                            $ msg_frame = "gui/send_frame.png"
+                                            $ text_colour = "#FFFFFF"
+                                            $ anim_direction = 1
+                                        else:
+                                            $ msg_frame = "gui/received_frame.png"
+                                            $ text_colour = "#FFFFFF"
+                                            $ anim_direction = -1
+
+                                        $ msg_align = phone_config["message_align"]
+                                        if is_player_message:
+                                            $ header_icon = mc_avatar_path
+                                            $ header_align = 1.0 - msg_align
+                                        else:
+                                            $ header_icon = phone_channel_data[current_app]["icon"]
+                                            $ header_align = msg_align
+                                        $ name_colour = get_sender_name_color(dark_mode)
+
+                                        if message_kind in (0, 2, 3, 4) and sender != last_sender_in_chat_view:
+                                            hbox:
+                                                xalign header_align
+                                                if is_player_message:
+                                                    xanchor 1.0
+                                                else:
+                                                    xanchor 0.0
+                                                spacing 10
+                                                if not is_player_message and header_icon:
+                                                    add header_icon:
+                                                        xysize (56, 56)
                                                         yalign 0.5
-                                                    if is_player_message and header_icon:
-                                                        add header_icon:
-                                                            xysize (56, 56)
-                                                            yalign 0.5
+                                                text sender:
+                                                    style "phone_sender_name_style"
+                                                    color name_colour
+                                                    yalign 0.5
+                                                if is_player_message and header_icon:
+                                                    add header_icon:
+                                                        xysize (56, 56)
+                                                        yalign 0.5
 
         #                                    # displaying the sender's name for group chats
         #                                    $ is_group_chat = phone_channel_data[current_app]["is_group"]
@@ -1478,7 +1462,7 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
 
                                             # message "supprimé"
                                             elif message_kind == 4:
-                                                $ deleted_state = phone_deleted_messages.get((current_app, msg_id), {"revealed": False, "original": message_text})
+                                                $ deleted_state = phone_deleted_messages.get((current_app, msg_id), {"revealed": False, "original": message_text, "fresh": False})
                                                 $ deleted_font = "gui/HelveticaNeueLTStd-It.otf" if message_text == deleted_message_placeholder else "gui/HelveticaNeueLTStd-Lt.otf"
                                                 button:
                                                     if is_player_message:
@@ -1496,7 +1480,9 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                                                         size phone_config["message_font_size"]
                                                         font deleted_font
                                                         layout "tex"
-                                                if deleted_state.get("revealed", False):
+                                                if deleted_state.get("revealed", False) and deleted_state.get("fresh", False):
+                                                    timer 1.5 action Function(hide_deleted_message, current_app, msg_id)
+                                                elif deleted_state.get("revealed", False):
                                                     timer deleted_message_rehide_delay action Function(hide_deleted_message, current_app, msg_id)
                                                 $ last_sender_in_chat_view = sender
 
@@ -1661,7 +1647,7 @@ screen app_saves():
             background app_body_bg()
             xfill True
             yfill True
-            padding (40, 40, 40, phone_navbar_height + 40)
+            padding (40, eta_bar_height + 40, 40, phone_navbar_height + 40)
 
             viewport:
                 xfill True
