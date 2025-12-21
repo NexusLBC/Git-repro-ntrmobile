@@ -1486,47 +1486,47 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                                                     timer deleted_message_rehide_delay action Function(hide_deleted_message, current_app, msg_id)
                                                 $ last_sender_in_chat_view = sender
 
-                                    else:
-                                        $ empty_color = get_empty_state_color(dark_mode)
+                                        else:
+                                            $ empty_color = get_empty_state_color(dark_mode)
 
-                                        text "Aucun message dans cette conversation.":
-                                            size 22
-                                            color empty_color
+                                            text "Aucun message dans cette conversation.":
+                                                size 22
+                                                color empty_color
 
 
-                                    # if there's a choice
-                                    if phone_choice_options and phone_choice_channel == current_app:
-                                        null height 20
-                                        vbox:
-                                            xalign 0.5
-                                            spacing 8
-                                            if not phone_choice_armed:
-                                                timer 0.15 action SetVariable("phone_choice_armed", True)
+                                        # if there's a choice
+                                        if phone_choice_options and phone_choice_channel == current_app:
+                                            null height 20
+                                            vbox:
+                                                xalign 0.5
+                                                spacing 8
+                                                if not phone_choice_armed:
+                                                    timer 0.15 action SetVariable("phone_choice_armed", True)
 
-                                            for i, (preview_text, actual_message, action) in enumerate(phone_choice_options):
-                                                $ message_to_send = preview_text
-                                                if actual_message is not None:
-                                                    $ message_to_send = actual_message
-                                                textbutton preview_text: #at choice_appear(delay = i * 0.1):
-                                                    action [
-                                                        SetVariable("phone_choice_armed", False),
-                                                        SetVariable("phone_choice_options", []),
-                                                        SetVariable("phone_choice_channel", None),
-                                                        SetVariable("disable_phone_menu_switch", False),
-                                                        Function(send_phone_message, sender=phone_config["phone_player_name"], message_text=message_to_send, channel_name=current_app, do_pause=False),
-                                                        If(action is not None, action),
-                                                        Return()
-                                                    ]
-                                                    sensitive phone_choice_armed
-                                                    background Frame("gui/send_frame.png", 23, 23)
-                                                    text_color "#FFFFFF"
-                                                    text_size phone_config["choice_font_size"]
-                                                    text_align 0.5
-                                                    xalign 0.5
-                                                    padding (15, 10)
+                                                for i, (preview_text, actual_message, action) in enumerate(phone_choice_options):
+                                                    $ message_to_send = preview_text
+                                                    if actual_message is not None:
+                                                        $ message_to_send = actual_message
+                                                    textbutton preview_text: #at choice_appear(delay = i * 0.1):
+                                                        action [
+                                                            SetVariable("phone_choice_armed", False),
+                                                            SetVariable("phone_choice_options", []),
+                                                            SetVariable("phone_choice_channel", None),
+                                                            SetVariable("disable_phone_menu_switch", False),
+                                                            Function(send_phone_message, sender=phone_config["phone_player_name"], message_text=message_to_send, channel_name=current_app, do_pause=False),
+                                                            If(action is not None, action),
+                                                            Return()
+                                                        ]
+                                                        sensitive phone_choice_armed
+                                                        background Frame("gui/send_frame.png", 23, 23)
+                                                        text_color "#FFFFFF"
+                                                        text_size phone_config["choice_font_size"]
+                                                        text_align 0.5
+                                                        xalign 0.5
+                                                        padding (15, 10)
 
-                                    # add a bit of extra padding to the bottom of the viewport
-                                    null height 30
+                                        # add a bit of extra padding to the bottom of the viewport
+                                        null height 30
 
 
 #---------------------------- Gallery ----------------------------------------
