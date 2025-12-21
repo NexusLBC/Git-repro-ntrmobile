@@ -123,6 +123,15 @@ init python:
         except Exception:
             pass
 
+    def phone_click_in_chat_area():
+        try:
+            x, y = renpy.get_mouse_pos()
+        except Exception:
+            return True  # fallback: allow
+        top = int(eta_bar_height + 150)  # eta bar + header
+        bottom = int(config.screen_height - phone_navbar_height)
+        return (y >= top) and (y <= bottom)
+
     # Register after-load callback in a version-safe way.
     try:
         # Ren'Py 7.x/8.x: list of callbacks
