@@ -628,11 +628,15 @@ init python:
 
     def phone_scroll_to_bottom_now(channel_name, yadjustment):
         try:
-            yadjustment.value = yadjustment.range + 1000
+            # La valeur "range" est le max scrollable, on se met légèrement après pour être sûr.
+            yadjustment.value = max(0, yadjustment.range) + 9999
         except Exception:
             pass
         store.phone_scroll_to_bottom[channel_name] = False
-        renpy.restart_interaction()
+        try:
+            renpy.restart_interaction()
+        except Exception:
+            pass
 
     # hide the text box stuff when the phone is up
     def phone_start():
