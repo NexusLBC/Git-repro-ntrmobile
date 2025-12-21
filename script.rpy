@@ -35,7 +35,3 @@ label start:
 
     call Phone
     return
-
-
-image emoji_sob = "phone/emoji/sob.png"
-image emoji_dizzy = "phone/emoji/dizzy.png"

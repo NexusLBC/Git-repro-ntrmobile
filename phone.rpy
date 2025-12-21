@@ -35,7 +35,7 @@ default _phone_global_message_counter = 0
 default gallery_all = ["cg_1", "cg_2", "cg_3", "cg_4", "cg_5", "cg_6"]
 default gallery_unlocked = []   # on ajoute les IDs quand on les débloque
 define eta_bar_height = 70
-define phone_navbar_height = 90
+define phone_navbar_height = 100
 define phone_scroll_threshold = 80
 define deleted_message_placeholder = _("Message supprimé")
 define deleted_message_rehide_delay = 4.0
@@ -386,6 +386,10 @@ init python:
         _deliver_phone_message(message_data, channel_name)
 
     def phone_queue_message(message_data, channel_name):
+        # Force do_pause=False pour éviter le conflit "clic = pause + reveal_next"
+        msg_id, sender, message_text, message_kind, current_global_id, summary_alt, image_x, image_y, do_pause = message_data
+        message_data = (msg_id, sender, message_text, message_kind, current_global_id, summary_alt, image_x, image_y, False)
+
         if channel_name not in store.phone_pending:
             store.phone_pending[channel_name] = []
         store.phone_pending[channel_name].append(message_data)
@@ -1186,7 +1190,7 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
             if current_app in phone_channels:
                 $ messenger_header_title = phone_channel_data[current_app]["display_name"]
             null height eta_bar_height
-            use app_header(messenger_header_title, "messenger")
+            use app_header(messenger_header_title, "messenger", icon_path=header_icon)
 
             # CORPS DE L'APP
             frame:
@@ -1366,14 +1370,6 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                                                         xysize (56, 56)
                                                         yalign 0.5
 
-        #                                    # displaying the sender's name for group chats
-        #                                    $ is_group_chat = phone_channel_data[current_app]["is_group"]
-        #                                    if is_group_chat and sender != phone_config["phone_player_name"] and sender != last_sender_in_chat_view:
-        #                                        text sender:
-        #                                            style "phone_sender_name_style"
-        #                                            xalign msg_align
-        #                                            xoffset 5
-
                                             # normal message : kind = 0
                                             if message_kind == 0:
                                                 frame:
@@ -1475,47 +1471,55 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                                                     timer deleted_message_rehide_delay action Function(hide_deleted_message, current_app, msg_id)
                                                 $ last_sender_in_chat_view = sender
 
-                                        else:
-                                            $ empty_color = get_empty_state_color(dark_mode)
+                                else:
+                                    $ empty_color = get_empty_state_color(dark_mode)
 
-                                            text "Aucun message dans cette conversation.":
-                                                size 22
-                                                color empty_color
+                                    text "Aucun message dans cette conversation.":
+                                        size 22
+                                        color empty_color
 
 
-                                        # if there's a choice
-                                        if phone_choice_options and phone_choice_channel == current_app:
-                                            null height 20
-                                            vbox:
+                                # if there's a choice
+                                if phone_choice_options and phone_choice_channel == current_app:
+                                    null height 20
+                                    vbox:
+                                        xalign 0.5
+                                        spacing 8
+                                        if not phone_choice_armed:
+                                            timer 0.15 action SetVariable("phone_choice_armed", True)
+
+                                        for i, (preview_text, actual_message, action) in enumerate(phone_choice_options):
+                                            $ message_to_send = preview_text
+                                            if actual_message is not None:
+                                                $ message_to_send = actual_message
+                                            textbutton preview_text: #at choice_appear(delay = i * 0.1):
+                                                action [
+                                                    SetVariable("phone_choice_armed", False),
+                                                    SetVariable("phone_choice_options", []),
+                                                    SetVariable("phone_choice_channel", None),
+                                                    SetVariable("disable_phone_menu_switch", False),
+                                                    Function(send_phone_message, sender=phone_config["phone_player_name"], message_text=message_to_send, channel_name=current_app, do_pause=False),
+                                                    If(action is not None, action),
+                                                    Return()
+                                                ]
+                                                sensitive phone_choice_armed
+                                                background Frame("gui/send_frame.png", 23, 23)
+                                                text_color "#FFFFFF"
+                                                text_size phone_config["choice_font_size"]
+                                                text_align 0.5
                                                 xalign 0.5
-                                                spacing 8
-                                                if not phone_choice_armed:
-                                                    timer 0.15 action SetVariable("phone_choice_armed", True)
+                                                padding (15, 10)
 
-                                                for i, (preview_text, actual_message, action) in enumerate(phone_choice_options):
-                                                    $ message_to_send = preview_text
-                                                    if actual_message is not None:
-                                                        $ message_to_send = actual_message
-                                                    textbutton preview_text: #at choice_appear(delay = i * 0.1):
-                                                        action [
-                                                            SetVariable("phone_choice_armed", False),
-                                                            SetVariable("phone_choice_options", []),
-                                                            SetVariable("phone_choice_channel", None),
-                                                            SetVariable("disable_phone_menu_switch", False),
-                                                            Function(send_phone_message, sender=phone_config["phone_player_name"], message_text=message_to_send, channel_name=current_app, do_pause=False),
-                                                            If(action is not None, action),
-                                                            Return()
-                                                        ]
-                                                        sensitive phone_choice_armed
-                                                        background Frame("gui/send_frame.png", 23, 23)
-                                                        text_color "#FFFFFF"
-                                                        text_size phone_config["choice_font_size"]
-                                                        text_align 0.5
-                                                        xalign 0.5
-                                                        padding (15, 10)
+                                if has_pending and not phone_fullscreen_viewer and not (phone_choice_options and phone_choice_channel == current_app):
+                                    button:
+                                        xfill True
+                                        yfill True
+                                        background None
+                                        hover_background None
+                                        action Function(phone_reveal_next, current_app)
 
-                                    # add a bit of extra padding to the bottom of the viewport
-                                    null height 30
+                                # add a bit of extra padding to the bottom of the viewport
+                                null height 30
 
 
 #---------------------------- Gallery ----------------------------------------
