@@ -1519,9 +1519,6 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                                                 xalign 0.5
                                                 padding (15, 10)
 
-                                if has_pending and not phone_fullscreen_viewer and not (phone_choice_options and phone_choice_channel == current_app):
-                                    key "mouseup_1" action If(phone_click_in_chat_area(), Function(phone_reveal_next, current_app), NullAction())
-
                                 # add a bit of extra padding to the bottom of the viewport
                                 null height 30
 
