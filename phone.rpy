@@ -35,7 +35,7 @@ default _phone_global_message_counter = 0
 default gallery_all = ["cg_1", "cg_2", "cg_3", "cg_4", "cg_5", "cg_6"]
 default gallery_unlocked = []   # on ajoute les IDs quand on les débloque
 define eta_bar_height = 70
-define phone_navbar_height = 130
+define phone_navbar_height = 90
 define phone_scroll_threshold = 80
 define deleted_message_placeholder = _("Message supprimé")
 define deleted_message_rehide_delay = 4.0
@@ -126,15 +126,10 @@ init python:
     # Register after-load callback in a version-safe way.
     try:
         # Ren'Py 7.x/8.x: list of callbacks
-        if hasattr(config, "after_load_callbacks"):
-            if phone_after_load not in config.after_load_callbacks:
-                config.after_load_callbacks.append(phone_after_load)
-        # Some builds expose a register function
-        elif hasattr(renpy, "register_after_load"):
-            renpy.register_after_load(phone_after_load)
-        else:
-            # Nothing available: keep game running without after-load hook
-            pass
+        if not hasattr(config, "after_load_callbacks"):
+            config.after_load_callbacks = []
+        if phone_after_load not in config.after_load_callbacks:
+            config.after_load_callbacks.append(phone_after_load)
     except Exception as e:
         try:
             renpy.log("after_load hook registration failed: %r" % e)
@@ -610,22 +605,20 @@ init python:
         """
         renpy.pause(length)
 
-    def phone_update_scroll_state(channel_name, yadjustment, threshold=phone_scroll_threshold):
-        if channel_name not in store.phone_user_scrolled_up:
-            store.phone_user_scrolled_up[channel_name] = False
-        if yadjustment is None:
-            return
-        if yadjustment.value < (yadjustment.range - threshold):
-            store.phone_user_scrolled_up[channel_name] = True
-        else:
+    def phone_update_scroll_state(channel_name, yadjustment):
+        try:
+            at_bottom = (yadjustment.value >= yadjustment.range - phone_scroll_threshold)
+            store.phone_user_scrolled_up[channel_name] = not at_bottom
+        except Exception:
             store.phone_user_scrolled_up[channel_name] = False
 
     def phone_scroll_to_bottom_now(channel_name, yadjustment):
         try:
-            yadjustment.value = yadjustment.range + 10000
+            yadjustment.value = yadjustment.range + 1000
         except Exception:
             pass
         store.phone_scroll_to_bottom[channel_name] = False
+        renpy.restart_interaction()
 
     # hide the text box stuff when the phone is up
     def phone_start():
@@ -982,7 +975,6 @@ style eta_bar_frame is empty:
 screen app_header(title, app_id, icon_path=None):
 
     frame:
-        yoffset eta_bar_height
         xfill True
         ysize 150
         background app_color(app_id)
@@ -1193,6 +1185,7 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
             $ messenger_header_title = "Messenger"
             if current_app in phone_channels:
                 $ messenger_header_title = phone_channel_data[current_app]["display_name"]
+            null height eta_bar_height
             use app_header(messenger_header_title, "messenger")
 
             # CORPS DE L'APP
@@ -1200,7 +1193,7 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                 background app_body_bg()
                 xfill True
                 yfill True
-                padding (30, eta_bar_height + 30, 30, phone_navbar_height + 30)
+                padding (30, 30, 30, phone_navbar_height + 30)
 
                 if current_app == "messenger":
                     # --- LISTE DES CONVERSATIONS ---
@@ -1283,17 +1276,13 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
 
                     $ has_pending = bool(phone_pending.get(current_app))
 
+                    if has_pending and not phone_fullscreen_viewer and not (phone_choice_options and phone_choice_channel == current_app):
+                        key "mouseup_1" action Function(phone_reveal_next, current_app)
+                        key "mousedown_1" action NullAction()
+
                     fixed:
                         xfill True
                         yfill True
-
-                        if has_pending and not phone_fullscreen_viewer and not (phone_choice_options and phone_choice_channel == current_app):
-                            button:
-                                xfill True
-                                yfill True
-                                background None
-                                hover_background None
-                                action Function(phone_reveal_next, current_app)
 
                         viewport:
                             id "message_viewport"
@@ -1525,8 +1514,8 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                                                         xalign 0.5
                                                         padding (15, 10)
 
-                                        # add a bit of extra padding to the bottom of the viewport
-                                        null height 30
+                                    # add a bit of extra padding to the bottom of the viewport
+                                    null height 30
 
 
 #---------------------------- Gallery ----------------------------------------
@@ -1541,13 +1530,14 @@ screen app_gallery():
         xfill True
         yfill True
 
+        null height eta_bar_height
         use app_header("Galerie", "gallery")
 
         frame:
             background app_body_bg()
             xfill True
             yfill True
-            padding (30, eta_bar_height + 30, 30, phone_navbar_height + 30)
+            padding (30, 30, 30, phone_navbar_height + 30)
 
             if not gallery_all:
                 text "Aucune image disponible." size 26
@@ -1641,13 +1631,14 @@ screen app_saves():
         xfill True
         yfill True
 
+        null height eta_bar_height
         use app_header("Sauvegardes", "saves")
 
         frame:
             background app_body_bg()
             xfill True
             yfill True
-            padding (40, eta_bar_height + 40, 40, phone_navbar_height + 40)
+            padding (40, 40, 40, phone_navbar_height + 40)
 
             viewport:
                 xfill True
@@ -1709,13 +1700,14 @@ screen app_settings():
         xfill True
         yfill True
 
+        null height eta_bar_height
         use app_header("Réglages", "settings")
 
         frame:
             background app_body_bg()
             xfill True
             yfill True
-            padding (30, eta_bar_height + 30, 30, phone_navbar_height + 30)
+            padding (30, 30, 30, phone_navbar_height + 30)
 
             $ text_color = get_text_color(dark_mode)
             $ selected_text_color = get_selected_text_color(dark_mode)
