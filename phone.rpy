@@ -436,8 +436,9 @@ init python:
             )
         )
 
-        if phone_config["auto_scroll"] and not store.phone_user_scrolled_up.get(channel_name, False):
-            store.phone_scroll_to_bottom[channel_name] = True
+        # Toujours se focaliser sur le dernier message, même si l'utilisateur avait scroll up.
+        store.phone_user_scrolled_up[channel_name] = False
+        store.phone_scroll_to_bottom[channel_name] = True
 
         if message_kind == 2:
             image_id = os.path.splitext(os.path.basename(message_text))[0]
