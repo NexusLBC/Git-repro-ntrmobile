@@ -13,35 +13,53 @@ init python:
         "saves":    "#3F5F24",
     }
 
-    def app_color(app_id, is_dark_mode):
+    def app_color(app_id, is_dark_mode=None):
+        if is_dark_mode is None:
+            is_dark_mode = getattr(store, "dark_mode", False)
         if is_dark_mode:
             return app_colors_dark.get(app_id, "#4c4f70")
         return app_colors_light.get(app_id, "#b4b8df")
 
-    def app_body_bg(is_dark_mode):
+    def app_body_bg(is_dark_mode=None):
+        if is_dark_mode is None:
+            is_dark_mode = getattr(store, "dark_mode", False)
         if is_dark_mode:
             return "#2b2b33"
         return "#e8e7e3"
 
-    def get_text_color(is_dark_mode):
+    def get_text_color(is_dark_mode=None):
+        if is_dark_mode is None:
+            is_dark_mode = getattr(store, "dark_mode", False)
         return "#202020" if not is_dark_mode else "#f2f2f2"
 
-    def get_selected_text_color(is_dark_mode):
+    def get_selected_text_color(is_dark_mode=None):
+        if is_dark_mode is None:
+            is_dark_mode = getattr(store, "dark_mode", False)
         return "#4A90E2" if not is_dark_mode else "#8AB4FF"
 
-    def get_selected_bg(is_dark_mode):
+    def get_selected_bg(is_dark_mode=None):
+        if is_dark_mode is None:
+            is_dark_mode = getattr(store, "dark_mode", False)
         return "#dceeff" if not is_dark_mode else "#1e3a5c"
 
-    def get_channel_name_color(is_dark_mode):
+    def get_channel_name_color(is_dark_mode=None):
+        if is_dark_mode is None:
+            is_dark_mode = getattr(store, "dark_mode", False)
         return "#111111" if not is_dark_mode else "#FFFFFF"
 
-    def get_channel_preview_color(is_dark_mode):
+    def get_channel_preview_color(is_dark_mode=None):
+        if is_dark_mode is None:
+            is_dark_mode = getattr(store, "dark_mode", False)
         return "#333333" if not is_dark_mode else "#DDDDDD"
 
-    def get_empty_state_color(is_dark_mode):
+    def get_empty_state_color(is_dark_mode=None):
+        if is_dark_mode is None:
+            is_dark_mode = getattr(store, "dark_mode", False)
         return "#222222" if not is_dark_mode else "#DDDDDD"
 
-    def get_sender_name_color(is_dark_mode):
+    def get_sender_name_color(is_dark_mode=None):
+        if is_dark_mode is None:
+            is_dark_mode = getattr(store, "dark_mode", False)
         return "#000000" if not is_dark_mode else "#FFFFFF"
 
     def get_eta_bar_background(is_dark_mode):
