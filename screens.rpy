@@ -658,7 +658,6 @@ screen file_slots(title):
             button:
                 style "page_label"
 
-                key_events True
                 xalign 0.5
                 action page_name_value.Toggle()
 
