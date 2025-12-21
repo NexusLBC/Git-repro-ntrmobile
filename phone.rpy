@@ -118,6 +118,7 @@ init python:
     def phone_after_load():
         # Important: don't force current_app or reset dark_mode.
         # Only refresh UI.
+        store.phone_loaded_from_save = True
         try:
             renpy.restart_interaction()
         except Exception:
@@ -266,34 +267,6 @@ init python:
         "saves": "app_saves",
         "settings": "app_settings",
     }
-
-    #------------------------ Style, Couleurs --------------------------------
-
-    app_colors_light = {
-        "messenger": "#b4b8df",
-        "gallery":  "#D97B2B",
-        "settings": "#4A90E2",
-        "saves":    "#6A9C3B",
-    }
-
-    app_colors_dark = {
-        "messenger": "#4c4f70",
-        "gallery":  "#9A4F1A",
-        "settings": "#1F3A5F",
-        "saves":    "#3F5F24",
-    }
-
-    def app_color(app):
-        if dark_mode:
-            return app_colors_dark[app]
-        else:
-            return app_colors_light[app]
-
-    def app_body_bg():
-        if not dark_mode:
-            return "#e8e7e3"
-        else:
-            return "#2b2b33"
 
     # ------------------------- Variables --------------------------------------
 
@@ -614,7 +587,7 @@ init python:
 
     def phone_scroll_to_bottom_now(channel_name, yadjustment):
         try:
-            yadjustment.value = yadjustment.range + 1000
+            yadjustment.value = yadjustment.range + 100000
         except Exception:
             pass
         store.phone_scroll_to_bottom[channel_name] = False
@@ -678,9 +651,9 @@ init python:
         # [("Choice Text 1", Jump("response_label_1")), ("Choice Text 2", Jump("response_label_2"))]
         global phone_choice_options, phone_choice_channel
         store.phone_choice_armed = False
-        phone_choice_options = choices
-        phone_choice_channel = channel_name
-        renpy.ui.interact()  # make the game wait for the user..
+        store.phone_choice_options = choices
+        store.phone_choice_channel = channel_name
+        renpy.restart_interaction()
 
     # gets the last message to show in the phone preview
     def get_channel_preview(channel_name):
@@ -977,7 +950,7 @@ screen app_header(title, app_id, icon_path=None):
     frame:
         xfill True
         ysize 150
-        background app_color(app_id)
+        background app_color(app_id, dark_mode)
 
         $ header_title = phone_app_title(title, app_id)
         $ can_go_back = current_app != "home"
@@ -1190,7 +1163,7 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
 
             # CORPS DE L'APP
             frame:
-                background app_body_bg()
+                background app_body_bg(dark_mode)
                 xfill True
                 yfill True
                 padding (30, 30, 30, phone_navbar_height + 30)
@@ -1294,13 +1267,13 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                             draggable True
 
                             if phone_scroll_to_bottom.get(current_app, False):
-                                timer 0.01 action Function(phone_scroll_to_bottom_now, current_app, yadj)
+                                timer 0.01 action Function(phone_scroll_to_bottom_now, current_app, yadj) repeat False
 
                             vbox:
                                 spacing 8
                                 xfill True
 
-                                if current_app in phone_channels:
+                                if current_app in phone_channels and phone_channels[current_app]:
 
                                     $ latest_channel_id = channel_last_message_id.get(current_app, 0)
                                     $ last_sender_in_chat_view = None
@@ -1482,40 +1455,48 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                                                 size 22
                                                 color empty_color
 
+                                # if there's a choice
+                                if phone_choice_options and phone_choice_channel == current_app:
+                                    null height 20
+                                    vbox:
+                                        xalign 0.5
+                                        spacing 8
+                                        if not phone_choice_armed:
+                                            timer 0.15 action SetVariable("phone_choice_armed", True)
 
-                                        # if there's a choice
-                                        if phone_choice_options and phone_choice_channel == current_app:
-                                            null height 20
-                                            vbox:
+                                        for i, (preview_text, actual_message, action) in enumerate(phone_choice_options):
+                                            $ message_to_send = preview_text
+                                            if actual_message is not None:
+                                                $ message_to_send = actual_message
+                                            textbutton preview_text: #at choice_appear(delay = i * 0.1):
+                                                action [
+                                                    SetVariable("phone_choice_armed", False),
+                                                    SetVariable("phone_choice_options", []),
+                                                    SetVariable("phone_choice_channel", None),
+                                                    SetVariable("disable_phone_menu_switch", False),
+                                                    Function(send_phone_message, sender=phone_config["phone_player_name"], message_text=message_to_send, channel_name=current_app, do_pause=False),
+                                                    If(action is not None, action),
+                                                    Return()
+                                                ]
+                                                sensitive phone_choice_armed
+                                                background Frame("gui/send_frame.png", 23, 23)
+                                                text_color "#FFFFFF"
+                                                text_size phone_config["choice_font_size"]
+                                                text_align 0.5
                                                 xalign 0.5
-                                                spacing 8
-                                                if not phone_choice_armed:
-                                                    timer 0.15 action SetVariable("phone_choice_armed", True)
-
-                                                for i, (preview_text, actual_message, action) in enumerate(phone_choice_options):
-                                                    $ message_to_send = preview_text
-                                                    if actual_message is not None:
-                                                        $ message_to_send = actual_message
-                                                    textbutton preview_text: #at choice_appear(delay = i * 0.1):
-                                                        action [
-                                                            SetVariable("phone_choice_armed", False),
-                                                            SetVariable("phone_choice_options", []),
-                                                            SetVariable("phone_choice_channel", None),
-                                                            SetVariable("disable_phone_menu_switch", False),
-                                                            Function(send_phone_message, sender=phone_config["phone_player_name"], message_text=message_to_send, channel_name=current_app, do_pause=False),
-                                                            If(action is not None, action),
-                                                            Return()
-                                                        ]
-                                                        sensitive phone_choice_armed
-                                                        background Frame("gui/send_frame.png", 23, 23)
-                                                        text_color "#FFFFFF"
-                                                        text_size phone_config["choice_font_size"]
-                                                        text_align 0.5
-                                                        xalign 0.5
-                                                        padding (15, 10)
+                                                padding (15, 10)
 
                                     # add a bit of extra padding to the bottom of the viewport
                                     null height 30
+
+                        if has_pending and not phone_fullscreen_viewer and not (phone_choice_options and phone_choice_channel == current_app):
+                            button:
+                                xfill True
+                                yfill True
+                                background None
+                                hover_background None
+                                focus_mask False
+                                action Function(phone_reveal_next, current_app)
 
 
 #---------------------------- Gallery ----------------------------------------
@@ -1534,7 +1515,7 @@ screen app_gallery():
         use app_header("Galerie", "gallery")
 
         frame:
-            background app_body_bg()
+            background app_body_bg(dark_mode)
             xfill True
             yfill True
             padding (30, 30, 30, phone_navbar_height + 30)
@@ -1635,7 +1616,7 @@ screen app_saves():
         use app_header("Sauvegardes", "saves")
 
         frame:
-            background app_body_bg()
+            background app_body_bg(dark_mode)
             xfill True
             yfill True
             padding (40, 40, 40, phone_navbar_height + 40)
@@ -1704,7 +1685,7 @@ screen app_settings():
         use app_header("Réglages", "settings")
 
         frame:
-            background app_body_bg()
+            background app_body_bg(dark_mode)
             xfill True
             yfill True
             padding (30, 30, 30, phone_navbar_height + 30)
