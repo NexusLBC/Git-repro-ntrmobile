@@ -495,6 +495,8 @@ init python:
 
         _, sender, _, message_kind, *_ = msg
 
+        $ phone_last_revealed_gid[channel] = delivered_message_global_id
+
         if message_kind != 1:
             store.phone_last_revealed_sender[channel_name] = sender
 
@@ -562,6 +564,8 @@ init python:
         store.phone_last_revealed_sender = {}
         store.phone_user_scrolled_up = {}
         store.phone_scroll_to_bottom = {}
+        default phone_last_revealed_gid = {}
+
 
         # aucun salon créé ici
         #create_phone_channel("maya_dm", "Maya", ["Maya", phone_config["phone_player_name"]], "avatars/maya_icon.png")
@@ -1295,8 +1299,13 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                     $ has_pending = bool(phone_pending.get(current_app))
 
                     if has_pending and not phone_fullscreen_viewer and not (phone_choice_options and phone_choice_channel == current_app):
-                        key "mouseup_1" action Function(phone_reveal_next, current_app)
-                        key "mousedown_1" action NullAction()
+                        # Ne révèle le prochain message QUE si le clic est dans la zone chat
+                        key "mouseup_1" action If(
+                            Function(phone_click_in_chat_area),
+                            Function(phone_reveal_next, current_app),
+                            NullAction()
+                        )
+
 
                     fixed:
                         xfill True
