@@ -77,7 +77,28 @@ define phone_config = {
 }
 
 
+default phone_click_consumed = False
+
 init python:
+    def phone_consume_click():
+        """
+        Mark that the current tap was used by an interactive bubble (image/deleted),
+        so the global 'tap to reveal next' must not fire.
+        """
+        store.phone_click_consumed = True
+
+    def phone_clear_consumed_click():
+        store.phone_click_consumed = False
+
+    def phone_reveal_next_if_not_consumed(channel_name):
+        """
+        Global tap handler for conversations.
+        If an interactive bubble used the click, do nothing (and reset the flag).
+        """
+        if store.phone_click_consumed:
+            store.phone_click_consumed = False
+            return
+        phone_reveal_next(channel_name)
     import os
     import re
 
@@ -1298,13 +1319,13 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
 
                     $ has_pending = bool(phone_pending.get(current_app))
 
-                    if has_pending and not phone_fullscreen_viewer and not (phone_choice_options and phone_choice_channel == current_app):
-                        # Ne révèle le prochain message QUE si le clic est dans la zone chat
-                        key "mouseup_1" action If(
-                            Function(phone_click_in_chat_area),
-                            Function(phone_reveal_next, current_app),
-                            NullAction()
-                        )
+        if has_pending and not phone_fullscreen_viewer and not (phone_choice_options and phone_choice_channel == current_app):
+            # Tap anywhere in chat area reveals next, EXCEPT if the click was used by kind 2 / kind 4 bubble.
+            key "mouseup_1" action If(
+                Function(phone_click_in_chat_area),
+                Function(phone_reveal_next_if_not_consumed, current_app),
+                NullAction()
+            )
 
 
                     fixed:
