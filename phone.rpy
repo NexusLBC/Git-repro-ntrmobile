@@ -11,6 +11,7 @@ default phone_choice_armed = False
 default phone_chat_auto_advance = False
 default phone_chat_auto_delay = 0.8
 default phone_last_revealed_sender = {}
+default phone_last_revealed_gid = {}
 default phone_animated_global_ids = {}
 default eta_bar_hidden = False
 default phone_navbar_hidden = False
@@ -520,6 +521,10 @@ init python:
 
         if message_kind != 1:
             store.phone_last_revealed_sender[channel_name] = sender
+        try:
+            store.phone_last_revealed_gid[channel_name] = msg[4]
+        except Exception:
+            store.phone_last_revealed_gid[channel_name] = None
 
 
     def phone_next_pending_sender(channel_name):
@@ -585,7 +590,7 @@ init python:
         store.phone_last_revealed_sender = {}
         store.phone_user_scrolled_up = {}
         store.phone_scroll_to_bottom = {}
-        default phone_last_revealed_gid = {}
+        store.phone_last_revealed_gid = {}
 
 
         # aucun salon créé ici
@@ -1362,16 +1367,16 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                                         if current_app not in phone_animated_global_ids:
                                             $ phone_animated_global_ids[current_app] = []
 
-                                        $ should_animate = False
-                                        if message_kind in (0, 2, 3, 4) and current_global_id not in phone_animated_global_ids[current_app]:
-                                            $ should_animate = True
-                                            $ phone_animated_global_ids[current_app].append(current_global_id)
+                                        $ should_animate = (
+                                        $     message_kind != 1
+                                        $     and phone_last_revealed_gid.get(current_app, None) == current_global_id
+                                        $ )
 
-                                            if msg_id == latest_channel_id and not channel_seen_latest[current_app]:
-                                                $ channel_seen_latest[current_app] = True
-                                                $ channel_notifs[current_app] = False
-                                                if phone_config["auto_scroll"] and not phone_user_scrolled_up.get(current_app, False):
-                                                    $ phone_scroll_to_bottom[current_app] = True
+                                        if msg_id == latest_channel_id and not channel_seen_latest[current_app]:
+                                            $ channel_seen_latest[current_app] = True
+                                            $ channel_notifs[current_app] = False
+                                            if phone_config["auto_scroll"] and not phone_user_scrolled_up.get(current_app, False):
+                                                $ phone_scroll_to_bottom[current_app] = True
 
                                         # bulle et couleur selon MC / autre
                                         $ is_player_message = sender == phone_config["phone_player_name"]
