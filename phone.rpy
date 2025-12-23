@@ -516,7 +516,7 @@ init python:
 
         _, sender, _, message_kind, *_ = msg
 
-        $ phone_last_revealed_gid[channel] = delivered_message_global_id
+        # (removed broken line: channel/delivered_message_global_id are undefined)
 
         if message_kind != 1:
             store.phone_last_revealed_sender[channel_name] = sender
