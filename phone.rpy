@@ -1243,6 +1243,7 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                 yfill True
                 padding (30, 30, 30, phone_navbar_height + 30)
 
+                $ has_pending = False
                 if current_app == "messenger":
                     # --- LISTE DES CONVERSATIONS ---
                     viewport:
@@ -1324,14 +1325,13 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
 
                     $ has_pending = bool(phone_pending.get(current_app))
 
-        if has_pending and not phone_fullscreen_viewer and not (phone_choice_options and phone_choice_channel == current_app):
-            # Tap anywhere in chat area reveals next, EXCEPT if the click was used by kind 2 / kind 4 bubble.
-            key "mouseup_1" action If(
-                Function(phone_click_in_chat_area),
-                Function(phone_reveal_next_if_not_consumed, current_app),
-                NullAction()
-            )
-
+                    if has_pending and not phone_fullscreen_viewer and not (phone_choice_options and phone_choice_channel == current_app):
+                        # Tap anywhere in chat area reveals next, EXCEPT if the click was used by kind 2 / kind 4 bubble.
+                        key "mouseup_1" action If(
+                            Function(phone_click_in_chat_area),
+                            Function(phone_reveal_next_if_not_consumed, current_app),
+                            NullAction()
+                        )
 
                     fixed:
                         xfill True
