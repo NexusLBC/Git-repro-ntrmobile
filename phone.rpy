@@ -167,6 +167,11 @@ init python:
         except Exception:
             pass
 
+    def phone_handle_chat_click(channel_name):
+    if not phone_click_in_chat_area():
+        return
+    phone_reveal_next_if_not_consumed(channel_name)
+
     # ------------------------- Navigation --------------------------------------
 
     def set_active_app(app_id, add_history=True, clear_stack=False):
@@ -1299,11 +1304,8 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
 
                     if has_pending and not phone_fullscreen_viewer and not (phone_choice_options and phone_choice_channel == current_app):
                         # Tap anywhere in chat area reveals next, EXCEPT if the click was used by kind 2 / kind 4 bubble.
-                        key "mouseup_1" action If(
-                            phone_click_in_chat_area(),
-                            Function(phone_reveal_next_if_not_consumed, current_app),
-                            NullAction()
-                        )
+                        key "mouseup_1" action Function(phone_handle_chat_click, current_app)
+
 
                     fixed:
                         xfill True
@@ -1339,10 +1341,7 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                                         if current_app not in phone_animated_global_ids:
                                             $ phone_animated_global_ids[current_app] = []
 
-                                        $ should_animate = (
-                                        $     message_kind != 1
-                                        $     and phone_last_revealed_gid.get(current_app, None) == current_global_id
-                                        $ )
+                                        $ should_animate = (message_kind != 1 and phone_last_revealed_gid.get(current_app, None) == current_global_id)
 
                                         if msg_id == latest_channel_id and not channel_seen_latest[current_app]:
                                             $ channel_seen_latest[current_app] = True
