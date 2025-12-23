@@ -298,34 +298,6 @@ init python:
         "settings": "app_settings",
     }
 
-    #------------------------ Style, Couleurs --------------------------------
-
-    app_colors_light = {
-        "messenger": "#b4b8df",
-        "gallery":  "#D97B2B",
-        "settings": "#4A90E2",
-        "saves":    "#6A9C3B",
-    }
-
-    app_colors_dark = {
-        "messenger": "#4c4f70",
-        "gallery":  "#9A4F1A",
-        "settings": "#1F3A5F",
-        "saves":    "#3F5F24",
-    }
-
-    def app_color(app):
-        if dark_mode:
-            return app_colors_dark[app]
-        else:
-            return app_colors_light[app]
-
-    def app_body_bg():
-        if not dark_mode:
-            return "#e8e7e3"
-        else:
-            return "#2b2b33"
-
     # ------------------------- Variables --------------------------------------
 
     # creates a new phone channel
