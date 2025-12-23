@@ -168,9 +168,9 @@ init python:
             pass
 
     def phone_handle_chat_click(channel_name):
-    if not phone_click_in_chat_area():
-        return
-    phone_reveal_next_if_not_consumed(channel_name)
+        if not phone_click_in_chat_area():
+            return
+        phone_reveal_next_if_not_consumed(channel_name)
 
     # ------------------------- Navigation --------------------------------------
 
