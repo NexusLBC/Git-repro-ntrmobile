@@ -1328,7 +1328,7 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                     if has_pending and not phone_fullscreen_viewer and not (phone_choice_options and phone_choice_channel == current_app):
                         # Tap anywhere in chat area reveals next, EXCEPT if the click was used by kind 2 / kind 4 bubble.
                         key "mouseup_1" action If(
-                            Function(phone_click_in_chat_area),
+                            phone_click_in_chat_area(),
                             Function(phone_reveal_next_if_not_consumed, current_app),
                             NullAction()
                         )
