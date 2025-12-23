@@ -1465,7 +1465,10 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                                                         ysize preview_height
                                                         background None
                                                         hover_background None
-                                                        action ToggleScreen("chat_image_viewer", image_path=message_text)
+                                                        action [
+                                                            Function(phone_consume_click),
+                                                            ToggleScreen("chat_image_viewer", image_path=message_text)
+                                                        ]
                                                         add Image(message_text) at scale_to_fit(preview_width, preview_height)
                                                 $ last_sender_in_chat_view = sender
 
