@@ -1506,7 +1506,10 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                                                     xmaximum bubble_width_limit
                                                     if should_animate:
                                                         at message_appear(anim_direction)
-                                                    action Function(toggle_deleted_message, current_app, msg_id)
+                                                    action [
+                                                        Function(phone_consume_click),
+                                                        Function(toggle_deleted_message, current_app, msg_id)
+                                                    ]
                                                     text message_text:
                                                         color text_colour
                                                         size phone_config["message_font_size"]
