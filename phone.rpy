@@ -168,6 +168,10 @@ init python:
             pass
 
     def phone_handle_chat_click(channel_name):
+        """
+        Handler utilisé par le key 'mouseup_1' dans l'écran de conversation.
+        Il vérifie que le clic est bien dans la zone de chat et ne fait rien sinon.
+        """
         if not phone_click_in_chat_area():
             return
         phone_reveal_next_if_not_consumed(channel_name)
@@ -1302,9 +1306,16 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
 
                     $ has_pending = bool(phone_pending.get(current_app))
 
+                    # Clic/tap global : uniquement dans les conversations, uniquement s'il y a des messages en attente,
+                    # pas en mode viewer plein écran, et pas pendant un écran de choix.
                     if has_pending and not phone_fullscreen_viewer and not (phone_choice_options and phone_choice_channel == current_app):
-                        # Tap anywhere in chat area reveals next, EXCEPT if the click was used by kind 2 / kind 4 bubble.
+                        # Tap souris dans la zone "écran" du téléphone
                         key "mouseup_1" action Function(phone_handle_chat_click, current_app)
+
+                        # Raccourcis clavier de debug/test : espace + entrées
+                        key "K_SPACE" action Function(phone_reveal_next_if_not_consumed, current_app)
+                        key "K_RETURN" action Function(phone_reveal_next_if_not_consumed, current_app)
+                        key "K_KP_ENTER" action Function(phone_reveal_next_if_not_consumed, current_app)
 
 
                     fixed:
