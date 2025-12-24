@@ -167,10 +167,19 @@ init python:
         except Exception:
             pass
 
-    def phone_handle_chat_click(channel_name):
-        if not phone_click_in_chat_area():
+    def phone_handle_chat_click(channel_name, ignore_mouse=False):
+        """
+        Gestion centralisée d'un 'tap' dans une conversation.
+
+        - Si ignore_mouse == False : on vérifie que le clic vient bien de la zone écran
+          (utilisé pour la souris).
+        - Si ignore_mouse == True : on ignore la position de la souris
+          (utilisé pour les touches clavier : espace / entrée).
+        """
+        if (not ignore_mouse) and (not phone_click_in_chat_area()):
             return
         phone_reveal_next_if_not_consumed(channel_name)
+
 
     # ------------------------- Navigation --------------------------------------
 
@@ -333,14 +342,17 @@ init python:
             channel_latest_global_id[channel_id] = 0
             phone_animated_global_ids[channel_id] = []
 
-    # add messages to a channel in the phone (kind 0 = normal message, kind 1 = timestamp, kind 2 = photo, kind 3 = has emojis, kind 4 = deleted message)
-        # add messages to a channel in the phone
+    # add messages to a channel in the phone
     # kind 0 = normal message, 1 = timestamp, 2 = photo, 3 = texte avec emojis, 4 = deleted/revealed message
     def send_phone_message(sender, message_text, channel_name,
         message_kind=0, summary_alt="none",
         image_x=320, image_y=320, do_pause=True):
         """
         Envoie un message dans un salon de téléphone et met à jour les infos.
+        FULL PHONE :
+        -> Tous les messages sont d'abord mis dans phone_pending.
+        -> Ils ne deviennent visibles qu'au moment où phone_reveal_next() est appelé
+           (clic dans la zone écran / espace / entrée / auto-advance).
         """
         global _phone_global_message_counter, current_global_id
 
@@ -384,6 +396,13 @@ init python:
             image_y,
             do_pause,
         )
+
+        # FULL PHONE: on passe TOUJOURS par la file d’attente
+        phone_queue_message(message_data, channel_name)
+
+        # On rafraîchit l’UI (utile si le salon est déjà ouvert)
+        renpy.restart_interaction()
+
 
         # Si le chat n'est pas ouvert, on met en attente (pending)
         if store.current_app != channel_name:
@@ -1302,9 +1321,21 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
 
                     $ has_pending = bool(phone_pending.get(current_app))
 
-                    if has_pending and not phone_fullscreen_viewer and not (phone_choice_options and phone_choice_channel == current_app):
-                        # Tap anywhere in chat area reveals next, EXCEPT if the click was used by kind 2 / kind 4 bubble.
+                    # Bindings d'avance de message :
+                    # - clic gauche dans la zone 'écran'
+                    # - Espace
+                    # - Entrée (classique)
+                    # - Entrée (pavé numérique)
+                    #
+                    # Si aucun message n'est en attente, phone_reveal_next() ne fera rien.
+                    if not phone_fullscreen_viewer and not (phone_choice_options and phone_choice_channel == current_app):
+                        # Souris : respecte la zone de clic
                         key "mouseup_1" action Function(phone_handle_chat_click, current_app)
+                        # Clavier : ignore la position de la souris -> toujours valable
+                        key "K_SPACE" action Function(phone_handle_chat_click, current_app, True)
+                        key "K_RETURN" action Function(phone_handle_chat_click, current_app, True)
+                        key "K_KP_ENTER" action Function(phone_handle_chat_click, current_app, True)
+
 
 
                     fixed:
