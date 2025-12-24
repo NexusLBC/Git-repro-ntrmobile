@@ -347,7 +347,9 @@ init python:
     def send_phone_message(sender, message_text, channel_name,
         message_kind=0, summary_alt="none",
         image_x=320, image_y=320, do_pause=True):
-        """Envoie un message dans un salon de téléphone et met à jour les infos.
+        """
+        Envoie un message dans un salon de téléphone et met à jour les infos.
+
         FULL PHONE :
         -> Tous les messages sont d'abord mis dans phone_pending.
         -> Ils ne deviennent visibles qu'au moment où phone_reveal_next() est appelé
@@ -402,14 +404,6 @@ init python:
         # On rafraîchit l’UI (utile si le salon est déjà ouvert)
         renpy.restart_interaction()
 
-
-        # Si le chat n'est pas ouvert, on met en attente (pending)
-        if store.current_app != channel_name:
-            phone_queue_message(message_data, channel_name)
-            renpy.restart_interaction()
-            return
-
-        _deliver_phone_message(message_data, channel_name)
 
     def phone_queue_message(message_data, channel_name):
         # Force do_pause=False pour éviter le conflit "clic = pause + reveal_next"
