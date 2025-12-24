@@ -172,9 +172,9 @@ init python:
         Gestion centralisée d'un 'tap' dans une conversation.
 
         - Si ignore_mouse == False : on vérifie que le clic vient bien de la zone écran
-          (utilisé pour la souris).
+        (utilisé pour la souris).
         - Si ignore_mouse == True : on ignore la position de la souris
-          (utilisé pour les touches clavier : espace / entrée).
+        (utilisé pour les touches clavier : espace / entrée).
         """
         if (not ignore_mouse) and (not phone_click_in_chat_area()):
             return
@@ -347,12 +347,11 @@ init python:
     def send_phone_message(sender, message_text, channel_name,
         message_kind=0, summary_alt="none",
         image_x=320, image_y=320, do_pause=True):
-        """
-        Envoie un message dans un salon de téléphone et met à jour les infos.
+        """Envoie un message dans un salon de téléphone et met à jour les infos.
         FULL PHONE :
         -> Tous les messages sont d'abord mis dans phone_pending.
         -> Ils ne deviennent visibles qu'au moment où phone_reveal_next() est appelé
-           (clic dans la zone écran / espace / entrée / auto-advance).
+        (clic dans la zone écran / espace / entrée / auto-advance).
         """
         global _phone_global_message_counter, current_global_id
 
