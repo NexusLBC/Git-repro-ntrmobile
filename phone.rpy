@@ -658,7 +658,7 @@ init python:
     def phone_scroll_to_bottom_now(channel_name, yadjustment):
         try:
             # La valeur "range" est le max scrollable, on se met légèrement après pour être sûr.
-            yadjustment.value = max(0, yadjustment.range) + 9999
+            yadjustment.value = max(0, yadjustment.range)
         except Exception:
             pass
         store.phone_scroll_to_bottom[channel_name] = False
@@ -1333,15 +1333,10 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                     # Si aucun message n'est en attente, phone_reveal_next() ne fera rien.
                     if not phone_fullscreen_viewer and not (phone_choice_options and phone_choice_channel == current_app):
 
-                        # Souris
-                        key "mouseup_1" action Function(phone_handle_chat_click, current_app)
+                        key "K_SPACE" action Function(phone_reveal_next_if_not_consumed, current_app)
+                        key "K_RETURN" action Function(phone_reveal_next_if_not_consumed, current_app)
+                        key "K_KP_ENTER" action Function(phone_reveal_next_if_not_consumed, current_app)
 
-                        # Clavier (on ignore la position souris)
-                        key "K_SPACE" action Function(phone_handle_chat_click, current_app, True)
-
-                        # Entrées possibles selon config / platform
-                        key "K_RETURN" action Function(phone_handle_chat_click, current_app, True)
-                        key "K_KP_ENTER" action Function(phone_handle_chat_click, current_app, True)
 
                     fixed:
                         xfill True
@@ -1359,221 +1354,233 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                             if phone_scroll_to_bottom.get(current_app, False):
                                 timer 0.01 action Function(phone_scroll_to_bottom_now, current_app, yadj)
 
-                            vbox:
-                                spacing 8
+                            fixed:
                                 xfill True
+                                yfill True
 
-                                if current_app in phone_channels:
+                                # LAYER FOND = "tap anywhere" (zone écran)
+                                button:
+                                    xfill True
+                                    yfill True
+                                    background None
+                                    hover_background None
+                                    action Function(phone_reveal_next_if_not_consumed, current_app)
 
-                                    $ latest_channel_id = channel_last_message_id.get(current_app, 0)
-                                    $ last_sender_in_chat_view = None
-                                    $ mc_avatar_path = get_mc_avatar_path()
-                                    $ bubble_width_limit = bubble_max_width()
+                                vbox:
+                                    spacing 8
+                                    xfill True
 
-                                    # display all messages
-                                    for message_data in phone_channels[current_app]:
-                                        $ msg_id, sender, message_text, message_kind, current_global_id, summary_alt, image_x, image_y = message_data
+                                    if current_app in phone_channels:
 
-                                        if current_app not in phone_animated_global_ids:
-                                            $ phone_animated_global_ids[current_app] = []
+                                        $ latest_channel_id = channel_last_message_id.get(current_app, 0)
+                                        $ last_sender_in_chat_view = None
+                                        $ mc_avatar_path = get_mc_avatar_path()
+                                        $ bubble_width_limit = bubble_max_width()
 
-                                        $ should_animate = (message_kind != 1 and phone_last_revealed_gid.get(current_app, None) == current_global_id)
+                                        # display all messages
+                                        for message_data in phone_channels[current_app]:
+                                            $ msg_id, sender, message_text, message_kind, current_global_id, summary_alt, image_x, image_y = message_data
 
-                                        if msg_id == latest_channel_id and not channel_seen_latest[current_app]:
-                                            $ channel_seen_latest[current_app] = True
-                                            $ channel_notifs[current_app] = False
-                                            if phone_config["auto_scroll"] and not phone_user_scrolled_up.get(current_app, False):
-                                                $ phone_scroll_to_bottom[current_app] = True
+                                            if current_app not in phone_animated_global_ids:
+                                                $ phone_animated_global_ids[current_app] = []
 
-                                        # bulle et couleur selon MC / autre
-                                        $ is_player_message = sender == phone_config["phone_player_name"]
-                                        if is_player_message:
-                                            $ msg_frame = "gui/send_frame.png"
-                                            $ text_colour = "#FFFFFF"
-                                            $ anim_direction = 1
-                                        else:
-                                            $ msg_frame = "gui/received_frame.png"
-                                            $ text_colour = "#FFFFFF"
-                                            $ anim_direction = -1
+                                            $ should_animate = (message_kind != 1 and phone_last_revealed_gid.get(current_app, None) == current_global_id)
 
-                                        $ msg_align = phone_config["message_align"]
-                                        if is_player_message:
-                                            $ header_icon = mc_avatar_path
-                                            $ header_align = 1.0 - msg_align
-                                        else:
-                                            $ header_icon = phone_channel_data[current_app]["icon"]
-                                            $ header_align = msg_align
-                                        $ name_colour = get_sender_name_color(dark_mode)
+                                            if msg_id == latest_channel_id and not channel_seen_latest[current_app]:
+                                                $ channel_seen_latest[current_app] = True
+                                                $ channel_notifs[current_app] = False
+                                                if phone_config["auto_scroll"] and not phone_user_scrolled_up.get(current_app, False):
+                                                    $ phone_scroll_to_bottom[current_app] = True
 
-                                        if message_kind in (0, 2, 3, 4) and sender != last_sender_in_chat_view:
-                                            hbox:
-                                                xalign header_align
-                                                if is_player_message:
-                                                    xanchor 1.0
-                                                else:
-                                                    xanchor 0.0
-                                                spacing 10
-                                                if not is_player_message and header_icon:
-                                                    add header_icon:
-                                                        xysize (56, 56)
-                                                        yalign 0.5
-                                                text sender:
-                                                    style "phone_sender_name_style"
-                                                    color name_colour
-                                                    yalign 0.5
-                                                if is_player_message and header_icon:
-                                                    add header_icon:
-                                                        xysize (56, 56)
-                                                        yalign 0.5
+                                            # bulle et couleur selon MC / autre
+                                            $ is_player_message = sender == phone_config["phone_player_name"]
+                                            if is_player_message:
+                                                $ msg_frame = "gui/send_frame.png"
+                                                $ text_colour = "#FFFFFF"
+                                                $ anim_direction = 1
+                                            else:
+                                                $ msg_frame = "gui/received_frame.png"
+                                                $ text_colour = "#FFFFFF"
+                                                $ anim_direction = -1
 
-                                            # normal message : kind = 0
-                                            if message_kind == 0:
-                                                frame:
-                                                    if is_player_message:
-                                                        xpos 1.0 - msg_align xanchor 1.0
-                                                    else:
-                                                        xpos msg_align xanchor 0.0
-                                                    background Frame(msg_frame, 23, 23)
-                                                    padding (15, 10)
-                                                    xmaximum bubble_width_limit
-                                                    if should_animate:
-                                                        at message_appear(anim_direction)
-                                                    text message_text:
-                                                        color text_colour
-                                                        size phone_config["message_font_size"]
-                                                        layout "tex"
-                                                $ last_sender_in_chat_view = sender
+                                            $ msg_align = phone_config["message_align"]
+                                            if is_player_message:
+                                                $ header_icon = mc_avatar_path
+                                                $ header_align = 1.0 - msg_align
+                                            else:
+                                                $ header_icon = phone_channel_data[current_app]["icon"]
+                                                $ header_align = msg_align
+                                            $ name_colour = get_sender_name_color(dark_mode)
 
-                                            # timestamp kind = 1
-                                            elif message_kind == 1:
-                                                null height 15
+                                            if message_kind in (0, 2, 3, 4) and sender != last_sender_in_chat_view:
                                                 hbox:
-                                                    xalign 0.5
-                                                    xmaximum 360
-                                                    text message_text:
-                                                        color "#AAAAAA"
-                                                        size phone_config["timestamp_font_size"]
-                                                null height 15
-                                                $ last_sender_in_chat_view = None
-
-                                            # photo kind = 2
-                                            elif message_kind == 2:
-                                                $ preview_width = bubble_width_limit
-                                                $ preview_height = int(preview_width * 16 / 9)
-                                                frame:
+                                                    xalign header_align
                                                     if is_player_message:
-                                                        xpos 1.0 - msg_align xanchor 1.0
+                                                        xanchor 1.0
                                                     else:
-                                                        xpos msg_align xanchor 0.0
-                                                    background Frame(msg_frame, 23, 23)
-                                                    padding (10, 10)
-                                                    xmaximum bubble_width_limit
+                                                        xanchor 0.0
+                                                    spacing 10
+                                                    if not is_player_message and header_icon:
+                                                        add header_icon:
+                                                            xysize (56, 56)
+                                                            yalign 0.5
+                                                    text sender:
+                                                        style "phone_sender_name_style"
+                                                        color name_colour
+                                                        yalign 0.5
+                                                    if is_player_message and header_icon:
+                                                        add header_icon:
+                                                            xysize (56, 56)
+                                                            yalign 0.5
 
-                                                    if should_animate:
-                                                        at message_appear(anim_direction)
+                                                # normal message : kind = 0
+                                                if message_kind == 0:
+                                                    frame:
+                                                        if is_player_message:
+                                                            xpos 1.0 - msg_align xanchor 1.0
+                                                        else:
+                                                            xpos msg_align xanchor 0.0
+                                                        background Frame(msg_frame, 23, 23)
+                                                        padding (15, 10)
+                                                        xmaximum bubble_width_limit
+                                                        if should_animate:
+                                                            at message_appear(anim_direction)
+                                                        text message_text:
+                                                            color text_colour
+                                                            size phone_config["message_font_size"]
+                                                            layout "tex"
+                                                    $ last_sender_in_chat_view = sender
 
+                                                # timestamp kind = 1
+                                                elif message_kind == 1:
+                                                    null height 15
+                                                    hbox:
+                                                        xalign 0.5
+                                                        xmaximum 360
+                                                        text message_text:
+                                                            color "#AAAAAA"
+                                                            size phone_config["timestamp_font_size"]
+                                                    null height 15
+                                                    $ last_sender_in_chat_view = None
+
+                                                # photo kind = 2
+                                                elif message_kind == 2:
+                                                    $ preview_width = bubble_width_limit
+                                                    $ preview_height = int(preview_width * 16 / 9)
+                                                    frame:
+                                                        if is_player_message:
+                                                            xpos 1.0 - msg_align xanchor 1.0
+                                                        else:
+                                                            xpos msg_align xanchor 0.0
+                                                        background Frame(msg_frame, 23, 23)
+                                                        padding (10, 10)
+                                                        xmaximum bubble_width_limit
+
+                                                        if should_animate:
+                                                            at message_appear(anim_direction)
+
+                                                        button:
+                                                            xsize preview_width
+                                                            ysize preview_height
+                                                            background None
+                                                            hover_background None
+                                                            action [
+                                                                Function(phone_consume_click),
+                                                                ToggleScreen("chat_image_viewer", image_path=message_text)
+                                                            ]
+                                                            add Image(message_text) at scale_to_fit(preview_width, preview_height)
+                                                    $ last_sender_in_chat_view = sender
+
+                                                # texte avec emojis kind = 3
+                                                elif message_kind == 3:
+                                                    frame:
+                                                        if is_player_message:
+                                                            xpos 1.0 - msg_align xanchor 1.0
+                                                        else:
+                                                            xpos msg_align xanchor 0.0
+                                                        background Frame(msg_frame, 23, 23)
+                                                        padding (15, 10)
+                                                        xmaximum bubble_width_limit
+
+                                                        if should_animate:
+                                                            at message_appear(anim_direction)
+
+                                                        text message_text:
+                                                            color text_colour
+                                                            size phone_config["message_font_size"]
+                                                            layout "tex"
+                                                    $ last_sender_in_chat_view = sender
+
+                                                # message "supprimé"
+                                                elif message_kind == 4:
+                                                    $ deleted_state = phone_deleted_messages.get((current_app, msg_id), {"revealed": False, "original": message_text, "fresh": False})
+                                                    $ deleted_font = "gui/HelveticaNeueLTStd-It.otf" if message_text == deleted_message_placeholder else "gui/HelveticaNeueLTStd-Lt.otf"
                                                     button:
-                                                        xsize preview_width
-                                                        ysize preview_height
-                                                        background None
-                                                        hover_background None
+                                                        if is_player_message:
+                                                            xpos 1.0 - msg_align xanchor 1.0
+                                                        else:
+                                                            xpos msg_align xanchor 0.0
+                                                        background Frame(msg_frame, 23, 23)
+                                                        padding (15, 10)
+                                                        xmaximum bubble_width_limit
+                                                        if should_animate:
+                                                            at message_appear(anim_direction)
                                                         action [
                                                             Function(phone_consume_click),
-                                                            ToggleScreen("chat_image_viewer", image_path=message_text)
+                                                            Function(toggle_deleted_message, current_app, msg_id)
                                                         ]
-                                                        add Image(message_text) at scale_to_fit(preview_width, preview_height)
-                                                $ last_sender_in_chat_view = sender
+                                                        text message_text:
+                                                            color text_colour
+                                                            size phone_config["message_font_size"]
+                                                            font deleted_font
+                                                            layout "tex"
+                                                    if deleted_state.get("revealed", False) and deleted_state.get("fresh", False):
+                                                        timer 1.5 action Function(hide_deleted_message, current_app, msg_id)
+                                                    elif deleted_state.get("revealed", False):
+                                                        timer deleted_message_rehide_delay action Function(hide_deleted_message, current_app, msg_id)
+                                                    $ last_sender_in_chat_view = sender
 
-                                            # texte avec emojis kind = 3
-                                            elif message_kind == 3:
-                                                frame:
-                                                    if is_player_message:
-                                                        xpos 1.0 - msg_align xanchor 1.0
-                                                    else:
-                                                        xpos msg_align xanchor 0.0
-                                                    background Frame(msg_frame, 23, 23)
-                                                    padding (15, 10)
-                                                    xmaximum bubble_width_limit
+                                    else:
+                                        $ empty_color = get_empty_state_color(dark_mode)
 
-                                                    if should_animate:
-                                                        at message_appear(anim_direction)
+                                        text "Aucun message dans cette conversation.":
+                                            size 22
+                                            color empty_color
 
-                                                    text message_text:
-                                                        color text_colour
-                                                        size phone_config["message_font_size"]
-                                                        layout "tex"
-                                                $ last_sender_in_chat_view = sender
 
-                                            # message "supprimé"
-                                            elif message_kind == 4:
-                                                $ deleted_state = phone_deleted_messages.get((current_app, msg_id), {"revealed": False, "original": message_text, "fresh": False})
-                                                $ deleted_font = "gui/HelveticaNeueLTStd-It.otf" if message_text == deleted_message_placeholder else "gui/HelveticaNeueLTStd-Lt.otf"
-                                                button:
-                                                    if is_player_message:
-                                                        xpos 1.0 - msg_align xanchor 1.0
-                                                    else:
-                                                        xpos msg_align xanchor 0.0
-                                                    background Frame(msg_frame, 23, 23)
-                                                    padding (15, 10)
-                                                    xmaximum bubble_width_limit
-                                                    if should_animate:
-                                                        at message_appear(anim_direction)
+                                    # if there's a choice
+                                    if phone_choice_options and phone_choice_channel == current_app:
+                                        null height 20
+                                        vbox:
+                                            xalign 0.5
+                                            spacing 8
+                                            if not phone_choice_armed:
+                                                timer 0.15 action SetVariable("phone_choice_armed", True)
+
+                                            for i, (preview_text, actual_message, action) in enumerate(phone_choice_options):
+                                                $ message_to_send = preview_text
+                                                if actual_message is not None:
+                                                    $ message_to_send = actual_message
+                                                textbutton preview_text: #at choice_appear(delay = i * 0.1):
                                                     action [
-                                                        Function(phone_consume_click),
-                                                        Function(toggle_deleted_message, current_app, msg_id)
+                                                        SetVariable("phone_choice_armed", False),
+                                                        SetVariable("phone_choice_options", []),
+                                                        SetVariable("phone_choice_channel", None),
+                                                        SetVariable("disable_phone_menu_switch", False),
+                                                        Function(send_phone_message, sender=phone_config["phone_player_name"], message_text=message_to_send, channel_name=current_app, do_pause=False),
+                                                        If(action is not None, action),
+                                                        Return()
                                                     ]
-                                                    text message_text:
-                                                        color text_colour
-                                                        size phone_config["message_font_size"]
-                                                        font deleted_font
-                                                        layout "tex"
-                                                if deleted_state.get("revealed", False) and deleted_state.get("fresh", False):
-                                                    timer 1.5 action Function(hide_deleted_message, current_app, msg_id)
-                                                elif deleted_state.get("revealed", False):
-                                                    timer deleted_message_rehide_delay action Function(hide_deleted_message, current_app, msg_id)
-                                                $ last_sender_in_chat_view = sender
+                                                    sensitive phone_choice_armed
+                                                    background Frame("gui/send_frame.png", 23, 23)
+                                                    text_color "#FFFFFF"
+                                                    text_size phone_config["choice_font_size"]
+                                                    text_align 0.5
+                                                    xalign 0.5
+                                                    padding (15, 10)
 
-                                else:
-                                    $ empty_color = get_empty_state_color(dark_mode)
-
-                                    text "Aucun message dans cette conversation.":
-                                        size 22
-                                        color empty_color
-
-
-                                # if there's a choice
-                                if phone_choice_options and phone_choice_channel == current_app:
-                                    null height 20
-                                    vbox:
-                                        xalign 0.5
-                                        spacing 8
-                                        if not phone_choice_armed:
-                                            timer 0.15 action SetVariable("phone_choice_armed", True)
-
-                                        for i, (preview_text, actual_message, action) in enumerate(phone_choice_options):
-                                            $ message_to_send = preview_text
-                                            if actual_message is not None:
-                                                $ message_to_send = actual_message
-                                            textbutton preview_text: #at choice_appear(delay = i * 0.1):
-                                                action [
-                                                    SetVariable("phone_choice_armed", False),
-                                                    SetVariable("phone_choice_options", []),
-                                                    SetVariable("phone_choice_channel", None),
-                                                    SetVariable("disable_phone_menu_switch", False),
-                                                    Function(send_phone_message, sender=phone_config["phone_player_name"], message_text=message_to_send, channel_name=current_app, do_pause=False),
-                                                    If(action is not None, action),
-                                                    Return()
-                                                ]
-                                                sensitive phone_choice_armed
-                                                background Frame("gui/send_frame.png", 23, 23)
-                                                text_color "#FFFFFF"
-                                                text_size phone_config["choice_font_size"]
-                                                text_align 0.5
-                                                xalign 0.5
-                                                padding (15, 10)
-
-                                # add a bit of extra padding to the bottom of the viewport
-                                null height 30
+                                    # add a bit of extra padding to the bottom of the viewport
+                                    null height 30
 
 
 #---------------------------- Gallery ----------------------------------------
