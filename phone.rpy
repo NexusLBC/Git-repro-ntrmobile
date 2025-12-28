@@ -1341,7 +1341,6 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
 
                         # Entrées possibles selon config / platform
                         key "K_RETURN" action Function(phone_handle_chat_click, current_app, True)
-                        key "K_ENTER" action Function(phone_handle_chat_click, current_app, True)
                         key "K_KP_ENTER" action Function(phone_handle_chat_click, current_app, True)
 
                     fixed:
