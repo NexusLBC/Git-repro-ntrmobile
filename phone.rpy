@@ -146,12 +146,26 @@ init python:
             pass
 
     def phone_click_in_chat_area():
+        """
+        Zone clickable = zone écran du chat, excluant:
+        - eta bar (70)
+        - header (150)
+        - padding top du corps (30)
+        - nav bar (100)
+        - padding bottom du corps (30)
+        """
         try:
             x, y = renpy.get_mouse_pos()
         except Exception:
-            return True  # fallback: allow
-        top = int(eta_bar_height + 150)  # eta bar + header
-        bottom = int(config.screen_height - phone_navbar_height)
+            return True
+
+        header_h = 150
+        body_pad_top = 30
+        body_pad_bottom = 30
+
+        top = int(eta_bar_height + header_h + body_pad_top)
+        bottom = int(config.screen_height - phone_navbar_height - body_pad_bottom)
+
         return (y >= top) and (y <= bottom)
 
     # Register after-load callback in a version-safe way.
@@ -348,12 +362,9 @@ init python:
         message_kind=0, summary_alt="none",
         image_x=320, image_y=320, do_pause=True):
         """
-        Envoie un message dans un salon de téléphone et met à jour les infos.
-
         FULL PHONE :
-        -> Tous les messages sont d'abord mis dans phone_pending.
-        -> Ils ne deviennent visibles qu'au moment où phone_reveal_next() est appelé
-        (clic dans la zone écran / espace / entrée / auto-advance).
+        -> Tous les messages vont dans phone_pending.
+        -> Ils ne deviennent visibles qu'avec phone_reveal_next() (clic/space/enter/auto).
         """
         global _phone_global_message_counter, current_global_id
 
@@ -362,26 +373,25 @@ init python:
             renpy.log("Tried to send message to non-existent channel: " + channel_name)
             return
 
-        # --- Normalisation des messages ---
+        # --- Normalisation ---
         if message_kind in (0, 3, 4):
             message_text = phone_render_emojis(message_text)
         elif message_kind == 2:
             message_text = phone_normalize_image_path(message_text)
 
-        # --- Son (sauf timestamps) ---
+        # --- Son ---
         if message_kind != 1:
             if sender == phone_config["phone_player_name"]:
-                # Son d’envoi (message du joueur)
                 if phone_config.get("play_sound_send", False):
                     renpy.sound.play("audio/phone/send.mp3", channel="sound")
             else:
-                # Son de réception (message d’un perso)
                 if phone_config.get("play_sound_receive", False):
                     renpy.sound.play("audio/phone/receive.mp3", channel="sound")
 
-        # --- Gestion des IDs / ordres des messages ---
+        # --- IDs ---
         _phone_global_message_counter += 1
         current_global_id = _phone_global_message_counter
+
         last_id = channel_last_message_id.get(channel_name, 0)
         current_id = last_id + 1
         channel_last_message_id[channel_name] = current_id
@@ -398,21 +408,21 @@ init python:
             do_pause,
         )
 
-        # FULL PHONE: on passe TOUJOURS par la file d’attente
+        # FULL PHONE : toujours en attente
         phone_queue_message(message_data, channel_name)
 
-        # On rafraîchit l’UI (utile si le salon est déjà ouvert)
+        # Refresh UI
         renpy.restart_interaction()
 
-
     def phone_queue_message(message_data, channel_name):
-        # Force do_pause=False pour éviter le conflit "clic = pause + reveal_next"
+        # Force do_pause=False pour éviter tout conflit "clic = pause + reveal_next"
         msg_id, sender, message_text, message_kind, current_global_id, summary_alt, image_x, image_y, do_pause = message_data
         message_data = (msg_id, sender, message_text, message_kind, current_global_id, summary_alt, image_x, image_y, False)
 
         if channel_name not in store.phone_pending:
             store.phone_pending[channel_name] = []
         store.phone_pending[channel_name].append(message_data)
+
 
     def _deliver_phone_message(message_data, channel_name):
         msg_id, sender, message_text, message_kind, current_global_id, summary_alt, image_x, image_y, do_pause = message_data
@@ -1322,14 +1332,17 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                     #
                     # Si aucun message n'est en attente, phone_reveal_next() ne fera rien.
                     if not phone_fullscreen_viewer and not (phone_choice_options and phone_choice_channel == current_app):
-                        # Souris : respecte la zone de clic
+
+                        # Souris
                         key "mouseup_1" action Function(phone_handle_chat_click, current_app)
-                        # Clavier : ignore la position de la souris -> toujours valable
+
+                        # Clavier (on ignore la position souris)
                         key "K_SPACE" action Function(phone_handle_chat_click, current_app, True)
+
+                        # Entrées possibles selon config / platform
                         key "K_RETURN" action Function(phone_handle_chat_click, current_app, True)
+                        key "K_ENTER" action Function(phone_handle_chat_click, current_app, True)
                         key "K_KP_ENTER" action Function(phone_handle_chat_click, current_app, True)
-
-
 
                     fixed:
                         xfill True
