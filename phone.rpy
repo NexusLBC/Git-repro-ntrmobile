@@ -940,9 +940,16 @@ init python:
             reveal_deleted_message(channel_name, msg_id)
 
     def phone_get_yadj(channel_name):
+        """
+        Retourne un yadjustment persistant par conversation.
+        Evite de recréer ui.adjustment() à chaque redraw => scroll stable.
+        """
         if channel_name not in store.phone_yadj_cache:
             store.phone_yadj_cache[channel_name] = ui.adjustment()
         return store.phone_yadj_cache[channel_name]
+
+    def phone_clear_yadj_cache():
+        store.phone_yadj_cache = {}
 
 # ---------- Styles du système de messagerie (sans thèmes) ----------
 
