@@ -434,9 +434,6 @@ init python:
             # au départ on laisse le vrai texte pendant 1.5 sec
             summary_alt = original_deleted_text
 
-        # Quand on révèle un message, on force le refresh UI
-        renpy.restart_interaction()
-
         channel_latest_global_id[channel_name] = max(
             channel_latest_global_id.get(channel_name, 0), current_global_id
         )
@@ -474,8 +471,6 @@ init python:
         else:
             channel_notifs[channel_name] = False
             channel_seen_latest[channel_name] = True
-
-        renpy.restart_interaction()
 
         # --- Historique Ren'Py (pour log / rollback) ---
         if message_kind == 0:
