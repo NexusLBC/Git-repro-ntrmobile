@@ -30,6 +30,21 @@ label start:
         $ send_phone_message(phone_config["phone_player_name"], "Yes. Maya me fait plancher. Besoin de toi si mon cerveau chauffe.", "elias_dm", do_pause=False)
         $ send_phone_message("Elias", "Respire. Hydrate-toi. Et si tout casse, blame le wifi. Classic.", "elias_dm", do_pause=False)
         $ send_phone_message(phone_config["phone_player_name"], "Deal. Je te dois un café si ça marche.", "elias_dm", do_pause=False)
+        $ send_phone_message("Maya", "Ok test sérieux : je t’envoie deux images. Ouvre/ferme, puis check la galerie.", "maya_dm", do_pause=False)
+        $ send_phone_message("Maya", "cg_1", "maya_dm", message_kind=2, summary_alt="photo", do_pause=False)
+        $ send_phone_message("Maya", "cg_2", "maya_dm", message_kind=2, summary_alt="photo", do_pause=False)
+        $ send_phone_message("Maya", "Et maintenant un message supprimé : clique dessus, mais ça ne doit PAS avancer.", "maya_dm", do_pause=False)
+        $ send_phone_message("Maya", "Ceci est le contenu SECRET à toggle.", "maya_dm", message_kind=4, do_pause=False)
+        $ send_phone_message("Maya", "Si après ça tu dois double-clic pour avancer, c’est qu’un clic est encore mangé.", "maya_dm", do_pause=False)
+
+        # Ensuite, spam volontaire pour forcer le scroll
+        python:
+            for i in range(1, 18):
+                send_phone_message("Maya", "Message long de test scroll #{:02d} — blabla blabla pour remplir et forcer la liste à descendre…".format(i), "maya_dm", do_pause=False)
+
+        $ advance_phone_time(3)
+        $ send_phone_message(phone_config["phone_player_name"], "Ok là je suis obligé de scroll. Et à chaque reveal ça doit me recoller en bas.", "maya_dm", do_pause=False)
+
     else:
         $ phone_loaded_from_save = False
 

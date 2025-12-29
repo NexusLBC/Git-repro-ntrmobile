@@ -35,6 +35,7 @@ default phone_choice_channel = None
 default _phone_global_message_counter = 0
 default gallery_all = ["cg_1", "cg_2", "cg_3", "cg_4", "cg_5", "cg_6"]
 default gallery_unlocked = []   # on ajoute les IDs quand on les débloque
+default phone_yadj_cache = {}
 define eta_bar_height = 70
 define phone_navbar_height = 100
 define phone_scroll_threshold = 80
@@ -943,6 +944,11 @@ init python:
         else:
             reveal_deleted_message(channel_name, msg_id)
 
+    def phone_get_yadj(channel_name):
+        if channel_name not in store.phone_yadj_cache:
+            store.phone_yadj_cache[channel_name] = ui.adjustment()
+        return store.phone_yadj_cache[channel_name]
+
 # ---------- Styles du système de messagerie (sans thèmes) ----------
 
 style phone_header_style is default:
@@ -1246,7 +1252,7 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                 if current_app == "messenger":
                     # --- LISTE DES CONVERSATIONS ---
                     viewport:
-                        draggable True
+                        draggable False
                         mousewheel True
                         xfill True
                         yfill True
@@ -1315,7 +1321,7 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                                             ysize 1
                 else:
                     # --- CHAT DANS UNE CONVERSATION ---
-                    $ yadj = ui.adjustment()
+                    $ yadj = phone_get_yadj(current_app)
 
                     timer 0.1 repeat True action Function(phone_update_scroll_state, current_app, yadj)
 
@@ -1337,6 +1343,11 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                         key "K_RETURN" action Function(phone_reveal_next_if_not_consumed, current_app)
                         key "K_KP_ENTER" action Function(phone_reveal_next_if_not_consumed, current_app)
 
+                    # Si une bulle interactive a consommé un clic, on reset très vite
+                    # pour que le PROCHAIN tap ne soit pas mangé.
+                    if phone_click_consumed:
+                        timer 0.01 action SetVariable("phone_click_consumed", False)
+
 
                     fixed:
                         xfill True
@@ -1349,7 +1360,7 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                             yadjustment yadj
                             scrollbars None
                             mousewheel True
-                            draggable True
+                            draggable False
 
                             if phone_scroll_to_bottom.get(current_app, False):
                                 timer 0.01 action Function(phone_scroll_to_bottom_now, current_app, yadj)
@@ -1609,7 +1620,7 @@ screen app_gallery():
 
             else:
                 viewport:
-                    draggable True
+                    draggable False
                     mousewheel True
                     scrollbars "vertical"
                     xfill True
@@ -1710,7 +1721,7 @@ screen app_saves():
                 yfill True
                 scrollbars None
                 mousewheel True
-                draggable True
+                draggable False
 
                 vbox:
                     spacing 20
