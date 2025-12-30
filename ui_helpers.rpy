@@ -1,4 +1,6 @@
 init python:
+    from renpy.display.im import MatrixColor
+
     app_colors_light = {
         "messenger": "#b4b8df",
         "gallery":  "#D97B2B",
@@ -76,3 +78,17 @@ init python:
 
     def bubble_max_width():
         return int(config.screen_width * 0.7)
+
+    def invert_if_dark(img_path, is_dark_mode=None):
+        is_dark_mode = _resolve_dark_mode(is_dark_mode)
+        if not is_dark_mode:
+            return img_path
+
+        # Inversion RGB
+        inv = [
+            -1, 0, 0, 0, 255,
+            0,-1, 0, 0, 255,
+            0, 0, -1, 0, 255,
+            0, 0, 0, 1, 0
+        ]
+        return MatrixColor(img_path, inv)
