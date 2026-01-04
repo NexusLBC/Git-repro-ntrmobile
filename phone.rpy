@@ -341,39 +341,80 @@ init python:
     # ------------------------- Variables --------------------------------------
 
     # creates a new phone channel
-    def create_phone_channel(channel_id, display_name, participants, icon_path, is_group=False):
-        """ Creates a new phone channel, like a DM or a group chat.
-            This function sets up the basic information for a new chat conversation.
-            Args:
-                channel_id (str): A unique identifier for the channel (e.g., "vanessa_dm").
-                display_name (str): The name that appears at the top of the chat screen.
-                participants (list): A list of strings with the names of everyone in the chat.
-                icon_path (str): The file path to the icon for this channel.
-                is_group (bool, optional): Set to True if this is a group chat. Defaults to False.
+    def create_phone_channel(
+        channel_id,
+        display_name,
+        participants,
+        icon_path,
+        is_group=False,
+        start_hidden=False,
+        start_locked=False
+    ):
         """
-        global phone_channel_data, phone_channels, channel_last_message_id, channel_notifs, channel_seen_latest, channel_visible
-        global phone_animated_global_ids
-        if channel_id not in phone_channel_data:
-            phone_channel_data[channel_id] = {
-                "display_name": display_name,
-                "icon": icon_path,
-                "participants": participants,
-                "is_group": is_group
-            }
-            phone_channels[channel_id] = []
-            channel_last_message_id[channel_id] = 0
-            channel_notifs[channel_id] = False
-            channel_seen_latest[channel_id] = True
-            channel_visible[channel_id] = True
-            channel_can_progress[channel_id] = True
-            channel_latest_global_id[channel_id] = 0
-            phone_animated_global_ids[channel_id] = []
+        Creates a new phone channel, like a DM or group chat.
 
-    def lock_channel_progress(channel_name):
-        store.channel_can_progress[channel_name] = False
+        start_hidden:
+            - If True, the channel exists but is not shown in the messenger list.
+        start_locked:
+            - If True, the channel can be opened/read but cannot progress (reveal_next blocked).
+        """
+        global phone_channel_data, phone_channels
+        global channel_last_message_id, channel_notifs, channel_seen_latest, channel_visible
+        global channel_latest_global_id, phone_animated_global_ids
 
-    def unlock_channel_progress(channel_name):
-        store.channel_can_progress[channel_name] = True
+        if channel_id in phone_channel_data:
+            # If it already exists, we still allow updating visibility/lock safely.
+            channel_visible[channel_id] = (not start_hidden)
+            store.channel_can_progress[channel_id] = (not start_locked)
+            return
+
+        phone_channel_data[channel_id] = {
+            "display_name": display_name,
+            "icon": icon_path,
+            "participants": participants,
+            "is_group": is_group
+        }
+
+        phone_channels[channel_id] = []
+        channel_last_message_id[channel_id] = 0
+        channel_notifs[channel_id] = False
+        channel_seen_latest[channel_id] = True
+
+        channel_visible[channel_id] = (not start_hidden)
+        store.channel_can_progress[channel_id] = (not start_locked)
+
+        channel_latest_global_id[channel_id] = 0
+        phone_animated_global_ids[channel_id] = []
+
+        renpy.restart_interaction()
+
+    def phone_dm(channel_id, display_name, icon_path, start_hidden=False, start_locked=False):
+        """
+        Helper ultra court pour créer une DM MC <-> X.
+        """
+        return create_phone_channel(
+            channel_id,
+            display_name,
+            [display_name, phone_config["phone_player_name"]],
+            icon_path,
+            is_group=False,
+            start_hidden=start_hidden,
+            start_locked=start_locked
+        )
+
+    def plock(channel_id):
+        store.channel_can_progress[channel_id] = False
+        renpy.restart_interaction()
+
+    def punlock(channel_id):
+        store.channel_can_progress[channel_id] = True
+        renpy.restart_interaction()
+
+    def pshow(channel_id):
+        show_phone_channel(channel_id)
+
+    def phide(channel_id):
+        hide_phone_channel(channel_id)
 
     # add messages to a channel in the phone
     # kind 0 = normal message, 1 = timestamp, 2 = photo, 3 = texte avec emojis, 4 = deleted/revealed message
