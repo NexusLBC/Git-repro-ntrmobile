@@ -10,7 +10,7 @@ label start:
         $ reset_phone_data()
         $ phone_start()
 
-        jump Maya_1_1         # Character + #Chapter + #Scene
+        jump start_chapter_1         # Character + #Chapter + #Scene
 
     else:
         $ phone_loaded_from_save = False
