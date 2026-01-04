@@ -1132,6 +1132,21 @@ init python:
     def phone_story_bind_channel(channel_name, scene_id):
         store.phone_story_scene_for_channel[channel_name] = scene_id
 
+    def phone_story_start(scene_id):
+        """
+        Prime la scène en queueant le *premier* message en pending (non visible).
+        Aucun reveal auto : c'est le joueur qui révèle.
+        """
+        if not phone_story_has_next(scene_id):
+            return
+        phone_story_pump(scene_id)
+
+    def pmsg(ch, sender, text, kind=0, summary_alt="none", ix=320, iy=320):
+        return ("msg", ch, sender, text, kind, summary_alt, ix, iy)
+
+    def pact(fn, *args, **kwargs):
+        return ("act", fn, args, kwargs)
+
     def phone_story_has_next(scene_id):
         steps = store.phone_story_steps.get(scene_id, [])
         pos = store.phone_story_pos.get(scene_id, 0)
@@ -1172,7 +1187,13 @@ init python:
             if stype == "msg":
                 _, ch, sender, text, kind, summary_alt, ix, iy = step
                 phone_story_advance(scene_id)
-                send_phone_message(sender, text, ch, message_kind=kind, summary_alt=summary_alt, image_x=ix, image_y=iy, do_pause=False)
+                send_phone_message(
+                    sender, text, ch,
+                    message_kind=kind,
+                    summary_alt=summary_alt,
+                    image_x=ix, image_y=iy,
+                    do_pause=False
+                )
                 return
 
             # Sécurité : si on a un type inconnu, on skip
@@ -1187,20 +1208,6 @@ init python:
         scene_id = store.phone_story_scene_for_channel.get(channel_name, None)
         if not scene_id:
             return
-
-        # Si la conv n'est pas progressable (lock), ne pas avancer l'histoire.
-        if not store.channel_can_progress.get(channel_name, True):
-            return
-
-        # Si un kind4 lock le reveal, on ne doit pas pousser la suite.
-        if phone_is_reveal_locked(channel_name):
-            return
-
-        # Important : on ne pousse la suite que si le pending est vide,
-        # pour garantir "1 message armé à la fois".
-        if store.phone_pending.get(channel_name, []):
-            return
-
         phone_story_pump(scene_id)
 
 # ---------- Styles du système de messagerie (sans thèmes) ----------
