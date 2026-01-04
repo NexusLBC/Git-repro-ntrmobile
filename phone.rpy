@@ -37,9 +37,11 @@ default gallery_all = ["cg_1", "cg_2", "cg_3", "cg_4", "cg_5", "cg_6"]
 default gallery_unlocked = []   # on ajoute les IDs quand on les débloque
 default phone_yadj_cache = {}
 default phone_click_consumed = False
+default phone_reveal_lock = {}
+default channel_can_progress = {}
 
 define eta_bar_height = 70
-define phone_navbar_height = 100
+define phone_navbar_height = 110
 define phone_scroll_threshold = 80
 define deleted_message_placeholder = _("Message supprimé")
 define deleted_message_rehide_delay = 4.0
@@ -138,9 +140,12 @@ init python:
             renpy.log("Autosave skipped: %r" % e)
 
     def phone_after_load():
-        # Important: don't force current_app or reset dark_mode.
-        # Only refresh UI.
         try:
+            store.current_app = "home"
+            store.phone_nav_stack = []
+            store.phone_fullscreen_viewer = False
+            store.phone_navbar_hidden = False
+            store.eta_bar_hidden = False
             renpy.restart_interaction()
         except Exception:
             pass
@@ -353,8 +358,15 @@ init python:
             channel_notifs[channel_id] = False
             channel_seen_latest[channel_id] = True
             channel_visible[channel_id] = True
+            channel_can_progress[channel_id] = True
             channel_latest_global_id[channel_id] = 0
             phone_animated_global_ids[channel_id] = []
+
+    def lock_channel_progress(channel_name):
+        store.channel_can_progress[channel_name] = False
+
+    def unlock_channel_progress(channel_name):
+        store.channel_can_progress[channel_name] = True
 
     # add messages to a channel in the phone
     # kind 0 = normal message, 1 = timestamp, 2 = photo, 3 = texte avec emojis, 4 = deleted/revealed message
@@ -374,7 +386,7 @@ init python:
             return
 
         # --- Normalisation ---
-        if message_kind in (0, 3, 4):
+        if message_kind == 0:
             message_text = phone_render_emojis(message_text)
         elif message_kind == 2:
             message_text = phone_normalize_image_path(message_text)
@@ -430,8 +442,8 @@ init python:
 
         if message_kind == 4:
             register_deleted_message(channel_name, msg_id, original_deleted_text)
-            # au départ on laisse le vrai texte pendant 1.5 sec
             summary_alt = original_deleted_text
+            phone_lock_reveal(channel_name)
 
         channel_latest_global_id[channel_name] = max(
             channel_latest_global_id.get(channel_name, 0), current_global_id
@@ -506,12 +518,18 @@ init python:
         if not store.phone_pending[channel_name]:
             return
 
+        # Interdit d'avancer si la conv n'est pas "active/progressable"
+        if not store.channel_can_progress.get(channel_name, True):
+            return
+
+        # Interdit d'avancer si un kind4 a verrouillé jusqu'à affichage "supprimé"
+        if phone_is_reveal_locked(channel_name):
+            return
+
         msg = store.phone_pending[channel_name].pop(0)
         _deliver_phone_message(msg, channel_name)
 
         _, sender, _, message_kind, *_ = msg
-
-        # (removed broken line: channel/delivered_message_global_id are undefined)
 
         if message_kind != 1:
             store.phone_last_revealed_sender[channel_name] = sender
@@ -585,10 +603,7 @@ init python:
         store.phone_user_scrolled_up = {}
         store.phone_scroll_to_bottom = {}
         store.phone_last_revealed_gid = {}
-
-
-        # aucun salon créé ici
-        #create_phone_channel("maya_dm", "Maya", ["Maya", phone_config["phone_player_name"]], "avatars/maya_icon.png")
+        store.channel_can_progress = {}
 
         renpy.restart_interaction()
 
@@ -599,10 +614,8 @@ init python:
         if store.phone_intro_done:
             return
 
-        if "maya_dm" not in phone_channel_data:
-            create_phone_channel("maya_dm", "Maya", ["Maya", phone_config["phone_player_name"]], "avatars/maya_icon.png")
-
-        create_phone_channel("elias_dm", "Elias", ["Elias", phone_config["phone_player_name"]], "avatars/elias_icon.png")
+        # if "maya_dm" not in phone_channel_data:
+        #     create_phone_channel("maya_dm", "Maya", ["Maya", phone_config["phone_player_name"]], "avatars/maya_icon.png")
 
         # Inject the welcome message directly so it shows as unread on first detection.
         if not phone_channels.get("maya_dm"):
@@ -927,6 +940,9 @@ init python:
         state["fresh"] = False
         _update_deleted_message_text(channel_name, msg_id, deleted_message_placeholder)
 
+        # On libère le reveal dès que "supprimé" est affiché
+        phone_unlock_reveal(channel_name)
+
     def toggle_deleted_message(channel_name, msg_id):
         state = store.phone_deleted_messages.get((channel_name, msg_id))
 
@@ -985,6 +1001,41 @@ init python:
             return "gui/msg_bar_buttons_dark.png" if is_dark_mode else "gui/msg_bar_buttons_light.png"
         # ... soit tu n'en as qu'un seul (voir Patch C pour inversion)
         return "gui/msg_bar_buttons.png"
+
+    def phone_lock_reveal(channel_name):
+        store.phone_reveal_lock[channel_name] = store.phone_reveal_lock.get(channel_name, 0) + 1
+
+    def phone_unlock_reveal(channel_name):
+        v = store.phone_reveal_lock.get(channel_name, 0) - 1
+        if v <= 0:
+            store.phone_reveal_lock.pop(channel_name, None)
+        else:
+            store.phone_reveal_lock[channel_name] = v
+
+    def phone_is_reveal_locked(channel_name):
+        return store.phone_reveal_lock.get(channel_name, 0) > 0
+
+    def phone_reset_run():
+        """
+        Reset progression 'auto phone' sans toucher aux saves manuelles (1..10).
+        Supprime autosave(s) et redémarre le jeu.
+        """
+        try:
+            # Supprimer autosaves
+            for slot in ("auto-1", "auto-2", "auto-3"):
+                try:
+                    renpy.unlink_save(slot)
+                except Exception:
+                    pass
+
+            # Remettre quelques flags
+            store.phone_loaded_from_save = False
+
+            # Redémarrer (revient au label start)
+            renpy.full_restart()
+        except Exception:
+            # En dernier recours
+            renpy.full_restart()
 
 
 # ---------- Styles du système de messagerie (sans thèmes) ----------
@@ -1063,6 +1114,10 @@ style eta_bar_frame is empty:
     background None
     padding (16, 10)
 
+style msg_bar_frame is empty:
+    background None
+    padding (0, 0)
+
 screen app_header(title, app_id, icon_path=None):
 
     frame:
@@ -1074,25 +1129,26 @@ screen app_header(title, app_id, icon_path=None):
         $ can_go_back = current_app != "home"
         $ header_color = get_sender_name_color(dark_mode)
 
-        hbox:
+        fixed:
             xfill True
-            yalign 0.5
-            spacing 30
-            #padding (20, 20)
+            yfill True
 
             if can_go_back:
                 imagebutton:
                     idle "gui/back.png"
                     hover "gui/back.png"
-                    xalign 0.5
+                    xpos 20
                     yalign 0.5
                     action Function(phone_back)
                     sensitive not disable_phone_menu_switch
             else:
-                null width 80
+                null
 
             hbox:
+                xalign 0.5
+                yalign 0.5
                 spacing 12
+
                 if icon_path is not None:
                     add icon_path:
                         xysize (64, 64)
@@ -1195,20 +1251,21 @@ screen eta_bar(show_time=True):
                         yalign 0.5
                         at scale_to_fit(42, 42)
 
-screen msg_bar(channel_name, current_app):
+screen msg_bar():
     # Visible uniquement si on est bien dans messenger + bon channel
     # (donc tu l'appelles seulement dans l'écran conversation, c'est suffisant)
 
-    zorder 90
+    #zorder 90
 
     frame:
+        style "msg_bar_frame"
         xfill True
         ysize MSG_BAR_H
         align (0.5, 1.0)
         yoffset -phone_navbar_height
         background Solid(msg_bar_bg())
 
-        # Toute la zone est cliquable
+        # Toute la zone cliquable
         button:
             xfill True
             yfill True
@@ -1216,25 +1273,27 @@ screen msg_bar(channel_name, current_app):
             hover_background None
             action Function(phone_reveal_next_if_not_consumed, current_app)
 
-            # Visuels par-dessus
-            fixed:
-                xfill True
-                yfill True
+            # # Visuels par-dessus
+            # fixed:
+            #     xfill True
+            #     yfill True
 
-                # PNG du champ de saisie
-                add msg_bar_field_png():
-                    xalign 0.5
-                    yalign 0.5
-                
-                add invert_if_dark("gui/msg_bar_send.png"):
-                    xalign 1.0
-                    yalign 0.5
-                    xoffset -30
-                
-                add invert_if_dark("gui/msg_bar_emoji.png"):
-                    xalign 0
-                    yalign 0.5
-                    xoffset 30
+            #     # PNG du champ de saisie
+            #     $ field_w = int(config.screen_width * 0.74)
+            #     $ field_h = int(MSG_BAR_H * 0.70)
+
+            #     add invert_if_dark("gui/msg_bar_emoji.png"):
+            #         xpos 30
+            #         yalign 0.5
+
+            #     add msg_bar_field_png() at scale_to_fit(field_w, field_h):
+            #         xalign 0.5
+            #         yalign 0.5
+
+            #     add invert_if_dark("gui/msg_bar_send.png"):
+            #         xpos (config.screen_width - 30)
+            #         xanchor 1.0
+            #         yalign 0.5
 
 
 # ------------------------- Main Menu ------------------------------------------
@@ -1289,6 +1348,7 @@ screen Phonescreen():
     elif current_app in phone_screen_routes:
         use expression phone_screen_routes[current_app]
 
+    use msg_bar
     use phone_navbar
     use eta_bar(show_time=True)
 
@@ -1332,7 +1392,7 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                 if current_app == "messenger":
                     # --- LISTE DES CONVERSATIONS ---
                     viewport:
-                        draggable True
+                        draggable "touch"
                         mousewheel True
                         xfill True
                         yfill True
@@ -1549,7 +1609,7 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
 
                                             # photo kind = 2
                                             elif message_kind == 2:
-                                                $ preview_width = bubble_width_limit
+                                                $ preview_width = int(bubble_width_limit * 0.5)
                                                 $ preview_height = int(preview_width * 16 / 9)
                                                 frame:
                                                     if is_player_message:
@@ -1572,7 +1632,13 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                                                             Function(phone_consume_click),
                                                             ToggleScreen("chat_image_viewer", image_path=message_text)
                                                         ]
-                                                        add Image(message_text) at scale_to_fit(preview_width, preview_height)
+
+                                                        fixed:
+                                                            xfill True
+                                                            yfill True
+                                                            clipping True
+
+                                                            add Image(message_text) at scale_to_fit(preview_width, preview_height)
                                                 $ last_sender_in_chat_view = sender
 
                                             # texte avec emojis kind = 3
@@ -1619,7 +1685,7 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                                                         font deleted_font
                                                         layout "tex"
                                                 if deleted_state.get("revealed", False) and deleted_state.get("fresh", False):
-                                                    timer 1.5 action Function(hide_deleted_message, current_app, msg_id)
+                                                    timer 1.0 action Function(hide_deleted_message, current_app, msg_id)
                                                 elif deleted_state.get("revealed", False):
                                                     timer deleted_message_rehide_delay action Function(hide_deleted_message, current_app, msg_id)
                                                 $ last_sender_in_chat_view = sender
@@ -1666,10 +1732,6 @@ screen app_messenger(auto_timer_enabled=phone_chat_auto_advance):
                                     # add a bit of extra padding to the bottom of the viewport
                                     null height (MSG_BAR_H + 20)
 
-                        # barre de message
-                        use msg_bar(channel_name, current_app)
-
-
 #---------------------------- Gallery ----------------------------------------
 
 # débloquer une image dans l'histoire :
@@ -1696,34 +1758,47 @@ screen app_gallery():
 
             else:
                 viewport:
-                    draggable True
+                    draggable "touch"
                     mousewheel True
-                    scrollbars "vertical"
+                    scrollbars None
                     xfill True
                     yfill True
 
                     $ cols = 3
+                    $ spacing = 20
+                    $ avail_w = config.screen_width - 60  # padding 30 + 30
                     $ rows = (len(gallery_all) + cols - 1) // cols
-                    $ thumb_width = 200
+                    $ thumb_width = int((avail_w - spacing * (cols - 1)) / cols)
                     $ thumb_height = int(thumb_width * 16 / 9)
 
                     grid cols rows:
                         spacing 20
 
-                        for img_id in gallery_all:
+                        $ total = len(gallery_all)
 
-                            if img_id in gallery_unlocked:
-                                button:
-                                    xsize thumb_width
-                                    ysize thumb_height
-                                    action Show("gallery_viewer", img_id=img_id)
-                                    add Image("images/cg/%s.png" % img_id) at scale_to_fit(thumb_width, thumb_height)
-                            else:
-                                button:
-                                    xsize thumb_width
-                                    ysize thumb_height
-                                    action NullAction()
-                                    add Image("gui/gallery_lock.png") at scale_to_fit(thumb_width, thumb_height)
+                        for idx, img_id in enumerate(gallery_all, start=1):
+
+                            vbox:
+                                xsize thumb_width
+                                spacing 6
+
+                                if img_id in gallery_unlocked:
+                                    button:
+                                        xsize thumb_width
+                                        ysize thumb_height
+                                        action Show("gallery_viewer", img_id=img_id)
+                                        add Image("images/cg/%s.png" % img_id) at scale_to_fit(thumb_width, thumb_height)
+                                else:
+                                    button:
+                                        xsize thumb_width
+                                        ysize thumb_height
+                                        action NullAction()
+                                        add Image("gui/gallery_lock.png") at scale_to_fit(thumb_width, thumb_height)
+
+                                text "{}/{}".format(idx, total):
+                                    size 18
+                                    xalign 0.5
+                                    color ("#FFFFFF" if dark_mode else "#333333")
 
 screen gallery_viewer(img_id):
     modal True
@@ -1797,7 +1872,7 @@ screen app_saves():
                 yfill True
                 scrollbars None
                 mousewheel True
-                draggable True
+                draggable "touch"
 
                 vbox:
                     spacing 20
@@ -1811,37 +1886,84 @@ screen app_saves():
                             xfill True
                             padding (20, 18)
 
-                            hbox:
-                                spacing 18
+                        hbox:
+                            spacing 18
+                            xfill True
+
+                            frame:
+                                background Solid(slot_border_color)
+                                padding (6, 6)
+                                xysize (210, 130)
+
+                                text "—":
+                                    xalign 0.5
+                                    yalign 0.5
+                                    size 40
+                                    color ("#666666" if not dark_mode else "#aaaaaa")
+
+                            # Colonne de droite = infos + boutons (tout au même endroit, stable)
+                            vbox:
+                                spacing 10
                                 xfill True
-
-                                frame:
-                                    background Solid(slot_border_color)
-                                    padding (6, 6)
-                                    xysize (210, 130)
-
-                                    add FileScreenshot(i) at scale_to_fit(198, 118)
 
                                 vbox:
                                     spacing 6
                                     xfill True
 
-                                    text "Emplacement [i]" size 22
+                                    text "Emplacement [i]" size 22 color (get_text_color(dark_mode))
                                     if exists:
-                                        text FileTime(i, format="%d/%m %H:%M") size 20
+                                        text FileTime(i, format="%d/%m %H:%M") size 20 color (get_text_color(dark_mode))
                                     else:
-                                        text "Vide" size 20
+                                        text "Vide" size 20 color (get_text_color(dark_mode))
 
                                 hbox:
-                                    spacing 12
+                                    spacing 14
                                     xalign 1.0
 
-                                    textbutton "Sauver":
-                                        action FileSave(i)
+                                    textbutton "Save":
+                                        action Show("phone_save_name_popup", slot=i)
+                                        background Frame(Solid("#2f7d32"), 10, 10)
+                                        hover_background Frame(Solid("#3c9a40"), 10, 10)
+                                        text_color "#ffffff"
+                                        padding (18, 10)
 
-                                    textbutton "Charger":
-                                        action FileLoad(i)
+                                    textbutton "Load":
+                                        action FileLoad(i, confirm=True)
                                         sensitive exists
+                                        background Frame(Solid("#1565c0"), 10, 10)
+                                        hover_background Frame(Solid("#1e88e5"), 10, 10)
+                                        text_color "#ffffff"
+                                        padding (18, 10)
+
+
+screen phone_save_name_popup(slot):
+    modal True
+    zorder 400
+
+    default name_value = FileSaveNameInputValue(slot)
+
+    add Solid("#00000080")
+
+    frame:
+        xalign 0.5
+        yalign 0.5
+        xsize int(config.screen_width * 0.85)
+        padding (30, 30)
+        background Frame(Solid("#ffffff"), 12, 12)
+
+        vbox:
+            spacing 18
+
+            text "Nom de la sauvegarde" size 28 color "#111111"
+            input value name_value length 30
+
+            hbox:
+                spacing 20
+                xalign 1.0
+
+                textbutton "Annuler" action Hide("phone_save_name_popup")
+                textbutton "OK" action [Hide("phone_save_name_popup"), FileSave(slot, confirm=True)]
+
 
 #---------------------------- Settings ----------------------------------------
 
@@ -1915,7 +2037,7 @@ screen app_settings():
                     style_prefix "check"
                     label _("Dark Mode")
                     textbutton _("Dark Mode"):
-                        action ToggleVariable("dark_mode", True, False)
+                        action [ToggleVariable("dark_mode", True, False), Function(phone_try_autosave)]
                         selected dark_mode
                         text_color text_color
                         text_selected_color selected_text_color
@@ -1978,3 +2100,32 @@ screen app_settings():
                         textbutton _("Mute All"):
                             action Preference("all mute", "toggle")
                             style "mute_all_button"
+
+                null height 30
+
+                frame:
+                    xalign 0.5
+                    xsize int(config.screen_width * 0.88)
+                    padding (20, 18)
+                    background Solid("#00000000")
+                    xmargin 0
+
+                    # Bordure rouge via un Frame simple
+                    add Frame(Solid("#ff0000"), 4, 4):
+                        xsize int(config.screen_width * 0.88)
+                        ysize 160
+                        alpha 0.25
+
+                    vbox:
+                        xfill True
+                        spacing 12
+
+                        text "Réinitialiser la partie (autosave)" size 26 color "#ff4d4d" xalign 0.5
+
+                        textbutton "RESET" xalign 0.5:
+                            text_size 30
+                            text_color "#ffffff"
+                            background Solid("#b00000")
+                            hover_background Solid("#d00000")
+                            padding (30, 14)
+                            action Confirm("Remettre à zéro la progression automatique et revenir au début ?\n(Vos sauvegardes manuelles ne seront pas effacées.)", Function(phone_reset_run))
