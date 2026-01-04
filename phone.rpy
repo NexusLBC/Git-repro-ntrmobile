@@ -34,11 +34,18 @@ default phone_choice_options = []
 default phone_choice_channel = None
 default _phone_global_message_counter = 0
 default gallery_all = ["cg_1", "cg_2", "cg_3", "cg_4", "cg_5", "cg_6"]
-default gallery_unlocked = []   # on ajoute les IDs quand on les débloque
+default gallery_unlocked = []                   # on ajoute les IDs quand on les débloque
 default phone_yadj_cache = {}
 default phone_click_consumed = False
 default phone_reveal_lock = {}
 default channel_can_progress = {}
+default phone_save_names = {}                   # slot(int) -> str
+default phone_save_name_tmp = ""
+default phone_save_slot_tmp = 1
+default phone_story_steps = {}                  # scene_id -> list of steps
+default phone_story_pos = {}                    # scene_id -> index
+default phone_story_scene_for_channel = {}      # channel -> scene_id or None
+
 
 define eta_bar_height = 70
 define phone_navbar_height = 110
@@ -135,7 +142,7 @@ init python:
 
     def phone_try_autosave():
         try:
-            renpy.force_autosave()
+            renpy.force_autosave(take_screenshot=False, block=False)
         except Exception as e:
             renpy.log("Autosave skipped: %r" % e)
 
@@ -537,7 +544,8 @@ init python:
             store.phone_last_revealed_gid[channel_name] = msg[4]
         except Exception:
             store.phone_last_revealed_gid[channel_name] = None
-
+        
+        phone_story_on_reveal(channel_name)
 
     def phone_next_pending_sender(channel_name):
         pending_messages = store.phone_pending.get(channel_name, [])
@@ -604,6 +612,9 @@ init python:
         store.phone_scroll_to_bottom = {}
         store.phone_last_revealed_gid = {}
         store.channel_can_progress = {}
+        store.phone_story_steps = {}
+        store.phone_story_pos = {}
+        store.phone_story_scene_for_channel = {}
 
         renpy.restart_interaction()
 
@@ -611,40 +622,39 @@ init python:
         """Prepare the default phone content when the phone is first unlocked."""
         global _phone_global_message_counter
 
-        if store.phone_intro_done:
-            return
+        # if store.phone_intro_done:
+        #     return
 
         # if "maya_dm" not in phone_channel_data:
         #     create_phone_channel("maya_dm", "Maya", ["Maya", phone_config["phone_player_name"]], "avatars/maya_icon.png")
 
         # Inject the welcome message directly so it shows as unread on first detection.
-        if not phone_channels.get("maya_dm"):
-            _phone_global_message_counter += 1
-            current_global_id = _phone_global_message_counter
+        # if not phone_channels.get("maya_dm"):
+        #     _phone_global_message_counter += 1
+        #     current_global_id = _phone_global_message_counter
 
-            last_id = channel_last_message_id.get("maya_dm", 0) + 1
-            channel_last_message_id["maya_dm"] = last_id
-            channel_latest_global_id["maya_dm"] = current_global_id
-            channel_notifs["maya_dm"] = True
-            channel_seen_latest["maya_dm"] = False
+        #     last_id = channel_last_message_id.get("maya_dm", 0) + 1
+        #     channel_last_message_id["maya_dm"] = last_id
+        #     channel_latest_global_id["maya_dm"] = current_global_id
+        #     channel_notifs["maya_dm"] = True
+        #     channel_seen_latest["maya_dm"] = False
 
-            phone_channels["maya_dm"].append(
-                (
-                    last_id,
-                    "Maya",
-                    "Salut, tu vois ce message ?",
-                    0,
-                    current_global_id,
-                    "none",
-                    320,
-                    320,
-                )
-            )
+            # phone_channels["maya_dm"].append(
+            #     (
+            #         last_id,
+            #         "Maya",
+            #         "Salut, tu vois ce message ?",
+            #         0,
+            #         current_global_id,
+            #         "none",
+            #         320,
+            #         320,
+            #     )
+            # )
 
-            renpy.restart_interaction()
+            # renpy.restart_interaction()
 
-        store.phone_intro_done = True
-
+        # store.phone_intro_done = True
 
     # pause the text messages for a certain length
     def phone_pause(length=1.0):
@@ -981,7 +991,7 @@ init python:
         except Exception:
             pass
 
-    # Hauteur de la barre "msg_bar" en pixels (à ajuster après)
+    # Hauteur de la barre "msg_bar" en pixels
     MSG_BAR_H = 140
 
     # Couleurs de fond fixes
@@ -989,17 +999,14 @@ init python:
         is_dark_mode = _resolve_dark_mode(is_dark_mode)
         return "#101014" if is_dark_mode else "#d9d9df"
 
-    # Assets (tu mettras les vrais noms)
+    # Assets
     def msg_bar_field_png(is_dark_mode=None):
-        # barre blanche avec texte "Message..." déjà inclus dans ton png
         return "gui/msg_bar_field.png"
 
     def msg_bar_buttons_png(is_dark_mode=None):
-        # soit tu as 2 versions...
         is_dark_mode = _resolve_dark_mode(is_dark_mode)
         if renpy.loadable("gui/msg_bar_buttons_dark.png") and renpy.loadable("gui/msg_bar_buttons_light.png"):
             return "gui/msg_bar_buttons_dark.png" if is_dark_mode else "gui/msg_bar_buttons_light.png"
-        # ... soit tu n'en as qu'un seul (voir Patch C pour inversion)
         return "gui/msg_bar_buttons.png"
 
     def phone_lock_reveal(channel_name):
@@ -1037,6 +1044,101 @@ init python:
             # En dernier recours
             renpy.full_restart()
 
+    def phone_set_active_conversation(channel_name):
+        # Lock toutes les convs existantes
+        for ch in store.phone_channels.keys():
+            store.channel_can_progress[ch] = False
+
+        # Autorise uniquement celle-ci
+        store.channel_can_progress[channel_name] = True
+
+    def phone_story_clear():
+        store.phone_story_steps = {}
+        store.phone_story_pos = {}
+        store.phone_story_scene_for_channel = {}
+
+    def phone_story_define(scene_id, steps):
+        """
+        steps = list of tuples:
+        ("msg", channel, sender, text, kind, summary_alt, image_x, image_y)
+        ("act", callable, args_tuple, kwargs_dict)
+        """
+        store.phone_story_steps[scene_id] = list(steps)
+        store.phone_story_pos[scene_id] = 0
+
+    def phone_story_bind_channel(channel_name, scene_id):
+        store.phone_story_scene_for_channel[channel_name] = scene_id
+
+    def phone_story_has_next(scene_id):
+        steps = store.phone_story_steps.get(scene_id, [])
+        pos = store.phone_story_pos.get(scene_id, 0)
+        return pos < len(steps)
+
+    def phone_story_peek(scene_id):
+        steps = store.phone_story_steps.get(scene_id, [])
+        pos = store.phone_story_pos.get(scene_id, 0)
+        if pos < len(steps):
+            return steps[pos]
+        return None
+
+    def phone_story_advance(scene_id):
+        store.phone_story_pos[scene_id] = store.phone_story_pos.get(scene_id, 0) + 1
+
+    def phone_story_pump(scene_id):
+        """
+        Exécute les étapes 'act' immédiatement,
+        et dès qu'on rencontre un 'msg', on l'envoie en pending (UN seul),
+        puis on s'arrête (le joueur révélera au prochain tap).
+        """
+        while phone_story_has_next(scene_id):
+            step = phone_story_peek(scene_id)
+            if not step:
+                return
+
+            stype = step[0]
+
+            if stype == "act":
+                _, fn, args, kwargs = step
+                phone_story_advance(scene_id)
+                try:
+                    fn(*args, **kwargs)
+                except Exception as e:
+                    renpy.log("phone_story act error (%s): %r" % (scene_id, e))
+                continue
+
+            if stype == "msg":
+                _, ch, sender, text, kind, summary_alt, ix, iy = step
+                phone_story_advance(scene_id)
+                send_phone_message(sender, text, ch, message_kind=kind, summary_alt=summary_alt, image_x=ix, image_y=iy, do_pause=False)
+                return
+
+            # Sécurité : si on a un type inconnu, on skip
+            phone_story_advance(scene_id)
+
+    def phone_story_on_reveal(channel_name):
+        """
+        Appelé après chaque reveal. Si ce channel est bind à une scene,
+        on prépare le prochain message (ou on exécute des actions),
+        mais on ne révèle rien automatiquement.
+        """
+        scene_id = store.phone_story_scene_for_channel.get(channel_name, None)
+        if not scene_id:
+            return
+
+        # Si la conv n'est pas progressable (lock), ne pas avancer l'histoire.
+        if not store.channel_can_progress.get(channel_name, True):
+            return
+
+        # Si un kind4 lock le reveal, on ne doit pas pousser la suite.
+        if phone_is_reveal_locked(channel_name):
+            return
+
+        # Important : on ne pousse la suite que si le pending est vide,
+        # pour garantir "1 message armé à la fois".
+        if store.phone_pending.get(channel_name, []):
+            return
+
+        phone_story_pump(scene_id)
 
 # ---------- Styles du système de messagerie (sans thèmes) ----------
 
@@ -1252,48 +1354,44 @@ screen eta_bar(show_time=True):
                         at scale_to_fit(42, 42)
 
 screen msg_bar():
-    # Visible uniquement si on est bien dans messenger + bon channel
-    # (donc tu l'appelles seulement dans l'écran conversation, c'est suffisant)
 
-    #zorder 90
-
-    frame:
-        style "msg_bar_frame"
-        xfill True
-        ysize MSG_BAR_H
-        align (0.5, 1.0)
-        yoffset -phone_navbar_height
-        background Solid(msg_bar_bg())
-
-        # Toute la zone cliquable
-        button:
+        frame:
+            style "msg_bar_frame"
             xfill True
-            yfill True
-            background None
-            hover_background None
-            action Function(phone_reveal_next_if_not_consumed, current_app)
+            ysize MSG_BAR_H
+            align (0.5, 1.0)
+            yoffset -phone_navbar_height
+            background Solid(msg_bar_bg())
 
-            # # Visuels par-dessus
-            # fixed:
-            #     xfill True
-            #     yfill True
+            # Toute la zone cliquable
+            button:
+                xfill True
+                yfill True
+                background None
+                hover_background None
+                action Function(phone_reveal_next_if_not_consumed, current_app)
 
-            #     # PNG du champ de saisie
-            #     $ field_w = int(config.screen_width * 0.74)
-            #     $ field_h = int(MSG_BAR_H * 0.70)
+                # Visuels par-dessus
+                fixed:
+                    xfill True
+                    yfill True
 
-            #     add invert_if_dark("gui/msg_bar_emoji.png"):
-            #         xpos 30
-            #         yalign 0.5
+                    # PNG du champ de saisie
+                    $ field_w = int(config.screen_width * 0.74)
+                    $ field_h = int(MSG_BAR_H * 0.70)
 
-            #     add msg_bar_field_png() at scale_to_fit(field_w, field_h):
-            #         xalign 0.5
-            #         yalign 0.5
+                    add invert_if_dark("gui/msg_bar_emoji.png"):
+                        xpos 30
+                        yalign 0.5
 
-            #     add invert_if_dark("gui/msg_bar_send.png"):
-            #         xpos (config.screen_width - 30)
-            #         xanchor 1.0
-            #         yalign 0.5
+                    add msg_bar_field_png() at scale_to_fit(field_w, field_h):
+                        xalign 0.5
+                        yalign 0.5
+
+                    add invert_if_dark("gui/msg_bar_send.png"):
+                        xpos (config.screen_width - 30)
+                        xanchor 1.0
+                        yalign 0.5
 
 
 # ------------------------- Main Menu ------------------------------------------
@@ -1348,7 +1446,8 @@ screen Phonescreen():
     elif current_app in phone_screen_routes:
         use expression phone_screen_routes[current_app]
 
-    use msg_bar
+    if current_app in phone_channels and current_app != "messenger" and not phone_fullscreen_viewer:
+        use msg_bar
     use phone_navbar
     use eta_bar(show_time=True)
 
@@ -1884,63 +1983,51 @@ screen app_saves():
                         frame:
                             background Frame(Solid(slot_bg_color), 12, 12)
                             xfill True
-                            padding (20, 18)
+                            padding (24, 18)
 
-                        hbox:
-                            spacing 18
-                            xfill True
-
-                            frame:
-                                background Solid(slot_border_color)
-                                padding (6, 6)
-                                xysize (210, 130)
-
-                                text "—":
-                                    xalign 0.5
-                                    yalign 0.5
-                                    size 40
-                                    color ("#666666" if not dark_mode else "#aaaaaa")
-
-                            # Colonne de droite = infos + boutons (tout au même endroit, stable)
-                            vbox:
-                                spacing 10
+                            hbox:
+                                spacing 16
                                 xfill True
 
-                                vbox:
-                                    spacing 6
+                                # Nom (ou fallback)
+                                $ display_name = phone_save_names.get(i, "Emplacement %d" % i)
+
+                                text display_name:
+                                    size 26
+                                    color get_text_color(dark_mode)
                                     xfill True
 
-                                    text "Emplacement [i]" size 22 color (get_text_color(dark_mode))
-                                    if exists:
-                                        text FileTime(i, format="%d/%m %H:%M") size 20 color (get_text_color(dark_mode))
-                                    else:
-                                        text "Vide" size 20 color (get_text_color(dark_mode))
+                                textbutton "Save":
+                                    action Show("phone_save_name_popup", slot=i)
+                                    text_color "#ffffff"
+                                    background Solid("#2f7d32")
+                                    hover_background Solid("#3c9a40")
+                                    padding (18, 10)
 
-                                hbox:
-                                    spacing 14
-                                    xalign 1.0
+                                textbutton "Load":
+                                    action FileLoad(i, confirm=True)
+                                    sensitive FileLoadable(i)
+                                    text_color "#ffffff"
+                                    background Solid("#1565c0")
+                                    hover_background Solid("#1e88e5")
+                                    padding (18, 10)
 
-                                    textbutton "Save":
-                                        action Show("phone_save_name_popup", slot=i)
-                                        background Frame(Solid("#2f7d32"), 10, 10)
-                                        hover_background Frame(Solid("#3c9a40"), 10, 10)
-                                        text_color "#ffffff"
-                                        padding (18, 10)
+                                textbutton "Delete":
+                                    action Confirm("Supprimer cette sauvegarde ?\n(\"%s\")" % display_name, FileDelete(i))
+                                    sensitive FileLoadable(i)
+                                    text_color "#ffffff"
+                                    background Solid("#b00000")
+                                    hover_background Solid("#d00000")
+                                    padding (18, 10)
 
-                                    textbutton "Load":
-                                        action FileLoad(i, confirm=True)
-                                        sensitive exists
-                                        background Frame(Solid("#1565c0"), 10, 10)
-                                        hover_background Frame(Solid("#1e88e5"), 10, 10)
-                                        text_color "#ffffff"
-                                        padding (18, 10)
+
 
 
 screen phone_save_name_popup(slot):
     modal True
     zorder 400
 
-    default name_value = FileSaveNameInputValue(slot)
+    on "show" action [SetVariable("phone_save_slot_tmp", slot), SetVariable("phone_save_name_tmp", phone_save_names.get(slot, ""))]
 
     add Solid("#00000080")
 
@@ -1955,14 +2042,19 @@ screen phone_save_name_popup(slot):
             spacing 18
 
             text "Nom de la sauvegarde" size 28 color "#111111"
-            input value name_value length 30
+            input value VariableInputValue("phone_save_name_tmp") length 30
 
             hbox:
                 spacing 20
                 xalign 1.0
 
                 textbutton "Annuler" action Hide("phone_save_name_popup")
-                textbutton "OK" action [Hide("phone_save_name_popup"), FileSave(slot, confirm=True)]
+                textbutton "OK" action [
+                    SetDict(phone_save_names, phone_save_slot_tmp, phone_save_name_tmp),
+                    Hide("phone_save_name_popup"),
+                    FileSave(phone_save_slot_tmp, confirm=True)
+                ]
+
 
 
 #---------------------------- Settings ----------------------------------------
