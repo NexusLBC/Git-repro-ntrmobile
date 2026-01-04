@@ -1093,6 +1093,28 @@ init python:
         # Autorise uniquement celle-ci
         store.channel_can_progress[channel_name] = True
 
+    def pswitch(channel_id, open_chat=True, ensure_visible=True):
+        """
+        Rend un channel *le seul* progressable (tous les autres lock),
+        et optionnellement ouvre la conversation.
+        """
+        # Lock toutes les convs existantes
+        for ch in store.phone_channel_data.keys():
+            store.channel_can_progress[ch] = False
+
+        # Unlock celle-ci
+        store.channel_can_progress[channel_id] = True
+
+        if ensure_visible:
+            show_phone_channel(channel_id)
+
+        if open_chat:
+            # On force l'app messenger puis on ouvre le channel
+            store.current_app = "messenger"
+            open_phone_channel(channel_id)
+
+        renpy.restart_interaction()
+
     def phone_story_clear():
         store.phone_story_steps = {}
         store.phone_story_pos = {}
