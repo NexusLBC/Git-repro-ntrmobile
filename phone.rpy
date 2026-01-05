@@ -180,6 +180,35 @@ init python:
         store.phone_toast_visible = False
         renpy.restart_interaction()
 
+    def phone_toast_tap():
+        """
+        Appelé quand le joueur tape sur la bannière.
+        Ouvre la conversation concernée, puis cache le toast.
+        """
+        ch = getattr(store, "phone_toast_channel", None)
+        if not ch:
+            return
+
+        # On ferme le toast tout de suite
+        store.phone_toast_visible = False
+
+        # Empêche la logique 'tap = reveal' de se déclencher ailleurs
+        store.phone_click_consumed = True
+
+        # Ouvre la conv (choix joueur, pas auto)
+        try:
+            open_phone_app("messenger")
+            open_phone_channel(ch)
+        except Exception:
+            # fallback minimal
+            store.current_app = "messenger"
+            try:
+                open_phone_channel(ch)
+            except Exception:
+                pass
+
+        renpy.restart_interaction()
+
     def phone_try_autosave():
         try:
             renpy.force_autosave(take_screenshot=False, block=False)
@@ -1358,14 +1387,16 @@ screen phone_toast():
 
     if phone_toast_visible:
 
-        # Bandeau sous l'ETA bar (comme sur un vrai tel)
-        frame at toast_slide:
+        # Zone cliquable = le bandeau
+        button at toast_slide:
             xpos 0
             ypos eta_bar_height
             xfill True
             ysize 110
             background Solid("#111111e6")
+            hover_background Solid("#1b1b1be6")
             padding (18, 16)
+            action Function(phone_toast_tap)
 
             hbox:
                 spacing 14
@@ -1385,7 +1416,7 @@ screen phone_toast():
                         size 22
                         color "#dddddd"
 
-        # auto-hide
+        # auto-hide (si pas cliqué)
         timer 1.25 action Function(phone_hide_toast)
 
 screen app_header(title, app_id, icon_path=None):
