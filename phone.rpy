@@ -1,26 +1,47 @@
 # Phone main interface
 
+# ---------------------------------------------------------------------------
+# ÉTAT GLOBAL / NAVIGATION TÉLÉPHONE
+# ---------------------------------------------------------------------------
 default current_background = Image("gui/root_screen.png")
 default dark_mode = False
 default current_app = "home"
 default phone_nav_stack = []
+default disable_phone_menu_switch = False
+default phone_mode = False
+
+# ---------------------------------------------------------------------------
+# FLAGS DE PROGRESSION / INTRO
+# ---------------------------------------------------------------------------
 default lock_done = False
 default phone_intro_done = False
-default phone_mode = False
-default phone_choice_armed = False
-default phone_chat_auto_advance = False
-default phone_chat_auto_delay = 0.8
-default phone_last_revealed_sender = {}
-default phone_last_revealed_gid = {}
-default phone_animated_global_ids = {}
+default phone_loaded_from_save = False
+
+# ---------------------------------------------------------------------------
+# UI STATE (VISIBILITÉ / OVERLAYS)
+# ---------------------------------------------------------------------------
 default eta_bar_hidden = False
 default phone_navbar_hidden = False
-default phone_deleted_messages = {}
 default phone_fullscreen_viewer = False
 default phone_over_chat = False
-default phone_user_scrolled_up = {}
-default phone_scroll_to_bottom = {}
-default phone_loaded_from_save = False
+
+# ---------------------------------------------------------------------------
+# INPUT / REVEAL CONTROL
+# ---------------------------------------------------------------------------
+default phone_click_consumed = False
+default phone_choice_armed = False
+default phone_choice_options = []
+default phone_choice_channel = None
+
+# ---------------------------------------------------------------------------
+# AUTO-ADVANCE CHAT (optionnel)
+# ---------------------------------------------------------------------------
+default phone_chat_auto_advance = False
+default phone_chat_auto_delay = 0.8
+
+# ---------------------------------------------------------------------------
+# CHANNELS / DATA (STRUCTURE MESSAGERIE)
+# ---------------------------------------------------------------------------
 default phone_channel_data = {}
 default phone_channels = {}
 default channel_last_message_id = {}
@@ -29,30 +50,62 @@ default channel_seen_latest = {}
 default channel_notifs = {}
 default channel_visible = {}
 default channel_latest_global_id = {}
-default phone_pending = {}
-default disable_phone_menu_switch = False
-default phone_choice_options = []
-default phone_choice_channel = None
-default _phone_global_message_counter = 0
-default gallery_all = ["cg_1", "cg_2", "cg_3", "cg_4", "cg_5", "cg_6"]
-default gallery_unlocked = []                   # on ajoute les IDs quand on les débloque
-default phone_yadj_cache = {}
-default phone_click_consumed = False
-default phone_reveal_lock = {}
 default channel_can_progress = {}
+
+# ---------------------------------------------------------------------------
+# PENDING / ORDER / ANIMATION IDS
+# ---------------------------------------------------------------------------
+default phone_pending = {}
+default phone_last_revealed_sender = {}
+default phone_last_revealed_gid = {}
+default phone_animated_global_ids = {}
+default _phone_global_message_counter = 0
+
+# ---------------------------------------------------------------------------
+# SCROLL
+# ---------------------------------------------------------------------------
+default phone_user_scrolled_up = {}
+default phone_scroll_to_bottom = {}
+default phone_yadj_cache = {}
+
+# ---------------------------------------------------------------------------
+# DELETED MESSAGES (KIND 4)
+# ---------------------------------------------------------------------------
+default phone_deleted_messages = {}
+default phone_reveal_lock = {}
+
+# ---------------------------------------------------------------------------
+# SAVES (APP “SAUVEGARDES”)
+# ---------------------------------------------------------------------------
 default phone_save_names = {}                   # slot(int) -> str
 default phone_save_name_tmp = ""
 default phone_save_slot_tmp = 1
+
+# ---------------------------------------------------------------------------
+# GALERIE
+# ---------------------------------------------------------------------------
+default gallery_all = ["cg_1", "cg_2", "cg_3", "cg_4", "cg_5", "cg_6"]
+default gallery_unlocked = []                   # on ajoute les IDs quand on les débloque
+
+# ---------------------------------------------------------------------------
+# STORY DRIVER (SCENES / STEPS)
+# ---------------------------------------------------------------------------
 default phone_story_steps = {}                  # scene_id -> list of steps
 default phone_story_pos = {}                    # scene_id -> index
 default phone_story_scene_for_channel = {}      # channel -> scene_id or None
+
+# ---------------------------------------------------------------------------
+# NOTIFS / TOASTS
+# ---------------------------------------------------------------------------
 default phone_toast_visible = False
 default phone_toast_icon = None
 default phone_toast_name = ""
 default phone_toast_preview = ""
 default phone_toast_channel = None
 
-
+# ---------------------------------------------------------------------------
+# CONSTANTES UI “STRUCTURE TÉLÉPHONE”
+# ---------------------------------------------------------------------------
 define eta_bar_height = 70
 define phone_navbar_height = 110
 define phone_scroll_threshold = 80
