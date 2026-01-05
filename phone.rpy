@@ -1341,6 +1341,10 @@ init python:
             return
         phone_story_pump(scene_id)
 
+# ===========================================================================
+# UI REN'PY — STYLES
+# ===========================================================================
+
 # ---------- Styles du système de messagerie (sans thèmes) ----------
 
 style phone_header_style is default:
@@ -1372,6 +1376,26 @@ style phone_sender_name_style is default:
     ypadding (0, 0)
     yalign 1.0
     font "gui/HelveticaNeueLTStd-Bd.otf"
+
+style phone_navbar_frame is empty:
+    background None
+    padding (0, 0)
+
+style phone_content_frame is empty:
+    background None
+    padding (0, 0)
+
+style eta_bar_frame is empty:
+    background None
+    padding (16, 10)
+
+style msg_bar_frame is empty:
+    background None
+    padding (0, 0)
+
+# ===========================================================================
+# UI REN'PY — TRANSFORMS / ANIMS
+# ===========================================================================
 
 # ---------- Transforms d’animation utilisés dans le chat ----------
 
@@ -1413,21 +1437,9 @@ transform toast_slide():
     on hide:
         ease 0.18 yoffset -120 alpha 0.0
 
-style phone_navbar_frame is empty:
-    background None
-    padding (0, 0)
-
-style phone_content_frame is empty:
-    background None
-    padding (0, 0)
-
-style eta_bar_frame is empty:
-    background None
-    padding (16, 10)
-
-style msg_bar_frame is empty:
-    background None
-    padding (0, 0)
+# ===========================================================================
+# UI REN'PY — SCREENS (STRUCTURE TÉLÉPHONE + APPS)
+# ===========================================================================
 
 screen phone_toast():
     zorder 260
