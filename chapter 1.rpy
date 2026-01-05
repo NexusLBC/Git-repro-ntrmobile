@@ -3,8 +3,10 @@ label start_chapter_1:
     $ phone_dm("maya_dm", "Maya", "avatars/maya_icon.png", start_hidden=False, start_locked=False)
     $ phone_dm("elias_dm", "Elias", "avatars/elias_icon.png", start_hidden=True, start_locked=True)
 
-    # On rend Maya active au début
-    $ pswitch("maya_dm", open_chat=True, ensure_visible=True)
+    # On rend Maya active au début (mais on ne l'ouvre pas)
+    $ pswitch("maya_dm", open_chat=False, ensure_visible=True)
+    $ current_app = "home"
+    $ phone_nav_stack = []
 
     # Définition de la scène "ch1_maya"
     $ phone_story_define("ch1_maya", [
