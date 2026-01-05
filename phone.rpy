@@ -24,6 +24,7 @@ default phone_loaded_from_save = False
 default phone_channel_data = {}
 default phone_channels = {}
 default channel_last_message_id = {}
+default channel_next_message_id = {}
 default channel_seen_latest = {}
 default channel_notifs = {}
 default channel_visible = {}
@@ -377,6 +378,7 @@ init python:
 
         phone_channels[channel_id] = []
         channel_last_message_id[channel_id] = 0
+        store.channel_next_message_id[channel_id] = 0
         channel_notifs[channel_id] = False
         channel_seen_latest[channel_id] = True
 
@@ -452,9 +454,10 @@ init python:
         _phone_global_message_counter += 1
         current_global_id = _phone_global_message_counter
 
-        last_id = channel_last_message_id.get(channel_name, 0)
-        current_id = last_id + 1
-        channel_last_message_id[channel_name] = current_id
+        next_id = store.channel_next_message_id.get(channel_name, 0) + 1
+        store.channel_next_message_id[channel_name] = next_id
+
+        current_id = next_id
 
         message_data = (
             current_id,
@@ -634,13 +637,14 @@ init python:
         au début du jeu (Maya, etc.).
         """
         global phone_channel_data, phone_channels
-        global channel_last_message_id, channel_notifs, channel_seen_latest
+        global channel_last_message_id, channel_next_message_id, channel_notifs, channel_seen_latest
         global channel_visible, channel_latest_global_id, _phone_global_message_counter
         global phone_animated_global_ids
 
         phone_channel_data = {}
         phone_channels = {}
         channel_last_message_id = {}
+        store.channel_next_message_id = {}
         channel_notifs = {}
         channel_seen_latest = {}
         channel_visible = {}
