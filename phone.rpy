@@ -574,8 +574,12 @@ init python:
 
         # Notifs / “non lu” uniquement pour les messages révélés
         if sender != phone_config["phone_player_name"]:
-            channel_notifs[channel_name] = True
-            channel_seen_latest[channel_name] = False
+            if store.current_app == channel_name:
+                channel_notifs[channel_name] = False
+                channel_seen_latest[channel_name] = True
+            else:
+                channel_notifs[channel_name] = True
+                channel_seen_latest[channel_name] = False
         else:
             channel_notifs[channel_name] = False
             channel_seen_latest[channel_name] = True
