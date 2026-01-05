@@ -34,7 +34,11 @@ label start_chapter_1:
 
         pact(pshow, "elias_dm"),
         pact(punlock, "elias_dm"),
-        pact(pswitch, "elias_dm", True, True),
+
+        # On change la conv progressable (Elias devient active), MAIS on n'ouvre pas automatiquement.
+        pact(pswitch, "elias_dm", False, True),
+
+        pact(plock, "maya_dm"),
 
         # Elias enchaîne (bind sur elias_dm)
         pact(phone_story_define, "ch1_elias", [
