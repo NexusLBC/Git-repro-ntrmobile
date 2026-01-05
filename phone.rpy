@@ -46,6 +46,11 @@ default phone_save_slot_tmp = 1
 default phone_story_steps = {}                  # scene_id -> list of steps
 default phone_story_pos = {}                    # scene_id -> index
 default phone_story_scene_for_channel = {}      # channel -> scene_id or None
+default phone_toast_visible = False
+default phone_toast_icon = None
+default phone_toast_name = ""
+default phone_toast_preview = ""
+default phone_toast_channel = None
 
 
 define eta_bar_height = 70
@@ -140,6 +145,40 @@ init python:
         if ".png" not in image_text:
             return "images/cg/%s.png" % image_text
         return image_text
+
+    def phone_make_preview_for_toast(sender, message_text, message_kind):
+        """
+        Preview courte pour la bannière.
+        On a le droit d'afficher le contenu du message dans une notif (UX téléphone),
+        même si le message est encore pending et donc pas dans la preview messenger.
+        """
+        if message_kind == 2:
+            return "📷 Photo"
+        if message_kind == 1:
+            return phone_strip_text_tags(message_text).strip()
+        # kind 4: on montre le contenu original (ou un placeholder safe)
+        if message_kind == 4:
+            txt = phone_strip_text_tags(message_text).strip()
+            return txt if txt else "Message…"
+        txt = phone_strip_text_tags(message_text).strip()
+        if len(txt) > 40:
+            txt = txt[:37] + "..."
+        return txt
+
+    def phone_show_toast(channel_name, sender, message_text, message_kind):
+        try:
+            store.phone_toast_channel = channel_name
+            store.phone_toast_icon = store.phone_channel_data.get(channel_name, {}).get("icon", None)
+            store.phone_toast_name = store.phone_channel_data.get(channel_name, {}).get("display_name", sender)
+            store.phone_toast_preview = phone_make_preview_for_toast(sender, message_text, message_kind)
+            store.phone_toast_visible = True
+            renpy.restart_interaction()
+        except Exception:
+            pass
+
+    def phone_hide_toast():
+        store.phone_toast_visible = False
+        renpy.restart_interaction()
 
     def phone_try_autosave():
         try:
@@ -473,6 +512,13 @@ init python:
 
         # FULL PHONE : toujours en attente
         phone_queue_message(message_data, channel_name)
+
+        try:
+            if sender != phone_config["phone_player_name"]:
+                if store.current_app != channel_name:
+                    phone_show_toast(channel_name, sender, message_text, message_kind)
+        except Exception:
+            pass
 
         # Refresh UI
         renpy.restart_interaction()
@@ -1278,6 +1324,14 @@ transform scale_to_fit(maxw, maxh):
     size (maxw, maxh)
     fit "contain"
 
+transform toast_slide():
+    on show:
+        yoffset -120
+        alpha 0.0
+        ease 0.18 yoffset 0 alpha 1.0
+    on hide:
+        ease 0.18 yoffset -120 alpha 0.0
+
 style phone_navbar_frame is empty:
     background None
     padding (0, 0)
@@ -1293,6 +1347,42 @@ style eta_bar_frame is empty:
 style msg_bar_frame is empty:
     background None
     padding (0, 0)
+
+screen phone_toast():
+    zorder 260
+    modal False
+
+    if phone_toast_visible:
+
+        # Bandeau sous l'ETA bar (comme sur un vrai tel)
+        frame at toast_slide:
+            xpos 0
+            ypos eta_bar_height
+            xfill True
+            ysize 110
+            background Solid("#111111e6")
+            padding (18, 16)
+
+            hbox:
+                spacing 14
+                yalign 0.5
+
+                if phone_toast_icon:
+                    add phone_toast_icon:
+                        xysize (64, 64)
+                        yalign 0.5
+
+                vbox:
+                    spacing 2
+                    text phone_toast_name:
+                        size 28
+                        color "#ffffff"
+                    text phone_toast_preview:
+                        size 22
+                        color "#dddddd"
+
+        # auto-hide
+        timer 1.25 action Function(phone_hide_toast)
 
 screen app_header(title, app_id, icon_path=None):
 
@@ -1524,6 +1614,7 @@ screen Phonescreen():
         use msg_bar
     use phone_navbar
     use eta_bar(show_time=True)
+    use phone_toast
 
 #---------------------------- Messenger ----------------------------------------
 
