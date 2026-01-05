@@ -92,3 +92,25 @@ init python:
             0, 0, 0, 1, 0
         ]
         return MatrixColor(img_path, inv)
+
+    # -----------------------------------------------------------------------
+    # UI — MSG BAR (assets / tailles / couleurs)
+    # -----------------------------------------------------------------------
+
+    # Hauteur de la barre "msg_bar" en pixels
+    MSG_BAR_H = 140
+
+    # Couleurs de fond fixes
+    def msg_bar_bg(is_dark_mode=None):
+        is_dark_mode = _resolve_dark_mode(is_dark_mode)
+        return "#101014" if is_dark_mode else "#d9d9df"
+
+    # Assets
+    def msg_bar_field_png(is_dark_mode=None):
+        return "gui/msg_bar_field.png"
+
+    def msg_bar_buttons_png(is_dark_mode=None):
+        is_dark_mode = _resolve_dark_mode(is_dark_mode)
+        if renpy.loadable("gui/msg_bar_buttons_dark.png") and renpy.loadable("gui/msg_bar_buttons_light.png"):
+            return "gui/msg_bar_buttons_dark.png" if is_dark_mode else "gui/msg_bar_buttons_light.png"
+        return "gui/msg_bar_buttons.png"
