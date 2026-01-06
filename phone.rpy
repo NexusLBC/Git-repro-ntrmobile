@@ -2464,10 +2464,9 @@ screen app_settings():
 
                     # Bordure rouge via un Frame simple
                     frame:
-                        background Frame(Solid("#ff0000"), 4, 4)
+                        background Frame(Solid("#ff000040"), 4, 4)
                         xsize int(config.screen_width * 0.88)
                         ysize 160
-                        alpha 0.25
                         padding (0, 0)
 
                     vbox:
