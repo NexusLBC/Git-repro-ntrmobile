@@ -605,6 +605,101 @@ init python:
         # Refresh UI
         renpy.restart_interaction()
 
+    def send_phone_message_delivered(sender, message_text, channel_name,
+        message_kind=0, summary_alt="none",
+        image_x=320, image_y=320, do_pause=False):
+        """
+        Message reçu/déjà arrivé (déjà reveal) :
+        - Ajout direct dans phone_channels (pas de pending).
+        - Aucune animation (on ne touche pas phone_last_revealed_gid).
+        - Notifs/toast cohérentes : si on n'est pas dans la conv, ça notifie.
+        """
+        global _phone_global_message_counter, current_global_id
+
+        if channel_name not in phone_channels:
+            renpy.log("Tried to deliver message to non-existent channel: " + channel_name)
+            return
+
+        # Normalisation identique à send_phone_message
+        if message_kind == 0:
+            message_text = phone_render_emojis(message_text)
+        elif message_kind == 2:
+            message_text = phone_normalize_image_path(message_text)
+
+        # IDs (même logique que send_phone_message)
+        _phone_global_message_counter += 1
+        current_global_id = _phone_global_message_counter
+
+        next_id = store.channel_next_message_id.get(channel_name, 0) + 1
+        store.channel_next_message_id[channel_name] = next_id
+        current_id = next_id
+
+        message_data = (
+            current_id,
+            sender,
+            message_text,
+            message_kind,
+            current_global_id,
+            summary_alt,
+            image_x,
+            image_y,
+            do_pause,
+        )
+
+        # Livraison immédiate (déjà reveal)
+        _deliver_phone_message(message_data, channel_name)
+
+        # Toast seulement si message reçu hors conv (comme ton send_phone_message)
+        try:
+            if sender != phone_config["phone_player_name"]:
+                if store.current_app != channel_name:
+                    phone_show_toast(channel_name, sender, message_text, message_kind)
+        except Exception:
+            pass
+
+        renpy.restart_interaction()
+
+
+    def phone_story_prefill(scene_id, n=1):
+        """
+        Pré-remplit une scène : consomme n messages au début et les met directement
+        en delivered (déjà reveal), sans animation.
+        Les 'act' rencontrées sont exécutées normalement.
+        """
+        filled = 0
+
+        while phone_story_has_next(scene_id) and filled < n:
+            step = phone_story_peek(scene_id)
+            if not step:
+                return
+
+            stype = step[0]
+
+            if stype == "act":
+                _, fn, args, kwargs = step
+                phone_story_advance(scene_id)
+                try:
+                    fn(*args, **kwargs)
+                except Exception as e:
+                    renpy.log("phone_story prefill act error (%s): %r" % (scene_id, e))
+                continue
+
+            if stype == "msg":
+                _, ch, sender, text, kind, summary_alt, ix, iy = step
+                phone_story_advance(scene_id)
+                send_phone_message_delivered(
+                    sender, text, ch,
+                    message_kind=kind,
+                    summary_alt=summary_alt,
+                    image_x=ix, image_y=iy,
+                    do_pause=False
+                )
+                filled += 1
+                continue
+
+            # type inconnu : skip
+            phone_story_advance(scene_id)
+
     def phone_queue_message(message_data, channel_name):
         # Force do_pause=False pour éviter tout conflit "clic = pause + reveal_next"
         msg_id, sender, message_text, message_kind, current_global_id, summary_alt, image_x, image_y, do_pause = message_data
@@ -654,7 +749,9 @@ init python:
             if image_id and image_id not in gallery_unlocked:
                 gallery_unlocked.append(image_id)
 
-        # Notifs / “non lu” uniquement pour les messages révélés
+        # Notifs / “non lu” uniquement pour les messages DELIVRÉS
+        # - Si on est déjà dans la conv -> considéré "lu" immédiatement => pas de point rouge
+        # - Si on n'est pas dans la conv -> point rouge
         if sender != phone_config["phone_player_name"]:
             if store.current_app == channel_name:
                 channel_notifs[channel_name] = False
