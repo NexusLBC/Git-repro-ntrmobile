@@ -42,6 +42,7 @@ label start_chapter_1:
 
         # Elias enchaîne (bind sur elias_dm)
         pact(phone_story_define, "ch1_elias", [
+            pact(phone_story_prefill, "ch1_elias", 1),
             pmsg("elias_dm", "Elias", "Yo, j'ai vu ton statut passer. Déjà en mode sprint matinal ?"),
             pmsg("elias_dm", phone_config["phone_player_name"], "Yes. Maya me fait plancher. Besoin de toi si mon cerveau chauffe."),
             pmsg("elias_dm", "Elias", "Respire. Hydrate-toi. Et si tout casse, blame le wifi. Classic."),
@@ -55,6 +56,9 @@ label start_chapter_1:
     ])
 
     $ phone_story_bind_channel("maya_dm", "ch1_maya")
+
+    $ phone_story_prefill("ch1_maya", 1)
+
     $ phone_story_start("ch1_maya")
 
     # On reste dans le téléphone (pas de jump)

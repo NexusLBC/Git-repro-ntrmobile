@@ -1555,6 +1555,9 @@ screen phone_toast():
             padding (18, 16)
             action Function(phone_toast_tap)
 
+            keyboard_focus False
+            keysym None
+
             hbox:
                 spacing 14
                 yalign 0.5
@@ -1574,7 +1577,7 @@ screen phone_toast():
                         color "#dddddd"
 
         # auto-hide (si pas cliqué)
-        timer 1.25 action Function(phone_hide_toast)
+        timer 2.5 action Function(phone_hide_toast)
 
 screen app_header(title, app_id, icon_path=None):
 
