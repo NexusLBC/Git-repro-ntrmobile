@@ -1,225 +1,329 @@
-📘 BIBLE DU JEU — (UNIVERS & DESIGN)
+📘 BIBLE DU JEU — VERSION V2 (UNIVERS, STRUCTURE & RYTHME)
 
-
+========================================================
 1) IDENTITÉ GÉNÉRALE
+========================================================
 
 Genre
-
 - Visual Novel 18+
 - Drame relationnel moderne
-- NTR / NTS optionnels
 - Romance psychologique
+- NTR / NTS optionnels et progressifs
 - Suspense intime
 
 Plateforme
-
-Ren’Py
+- Ren’Py
 
 Principe fondamental
+- Interface smartphone unique
+- Le téléphone EST le monde du jeu
+- Le joueur observe, déduit et interprète à travers des applications
+- Rien n’est montré frontalement au début, tout est suggéré, puis révélé
 
-Interface smartphone unique (le téléphone est le monde du jeu)
-Il observe, déduit, interprète à travers un téléphone.
-
-
+========================================================
 2) CONCEPT CENTRAL
+========================================================
 
 Le joueur incarne le MC (nom choisi par le joueur), en couple avec Maya.
-Sans le savoir, une synchronisation cloud ancienne entre leurs appareils se réactive automatiquement peu après le début du jeu.
+
+Peu après le début du jeu, une ancienne synchronisation cloud entre leurs appareils
+(seconde main, ancien téléphone, sauvegarde oubliée, autorisation implicite)
+se réactive automatiquement sans alerte claire.
 
 Cette synchronisation :
-
-- ne génère aucune alerte claire
 - ne donne pas accès à tout
-- débloque progressivement des fragments de la vie numérique de Maya
+- fonctionne par fragments
+- s’active progressivement au fil des chapitres
 
-Le MC n’en parle pas.
+Le MC ne confronte pas Maya.
+Il n’en parle à personne.
 Il observe en silence.
 
-Le NTR n’est jamais imposé :
-👉 il émerge naturellement selon les choix du joueur.
+Le NTR n’est jamais imposé.
+Il émerge lentement, selon :
+- les choix du joueur
+- la passivité ou l’intervention
+- le temps
+- les pressions extérieures
 
+========================================================
+3) STRUCTURE NARRATIVE GLOBALE
+========================================================
 
-3) PERSONNAGES PRINCIPAUX
+Le jeu est divisé en CHAPITRES.
+Chaque chapitre :
+- fait avancer l’histoire
+- introduit ou approfondit un lieu, une situation ou une dynamique
+- ajoute du contenu sans tout révéler
+
+Les premiers chapitres servent à :
+- installer le monde
+- solidifier la relation MC ↔ Maya
+- créer un attachement émotionnel réel
+
+Le NTR ne commence PAS avant le chapitre 3.
+
+Exemples de chapitres :
+- Chapitre vie quotidienne (MC + Maya)
+- Chapitre travail
+- Chapitre sport
+- Chapitre camping
+- Chapitre convention / événement
+- Chapitre soirée / bar
+- Chapitre déplacement / week-end
+
+Un chapitre peut contenir :
+- plusieurs lieux
+- plusieurs scènes
+si la transition est logique et naturelle.
+
+========================================================
+4) PERSONNAGES PRINCIPAUX
+========================================================
 
 🧑 MC (joueur)
-
 - Adulte (18+)
- En couple stable avec Maya
- Point de vue unique
-- Compétent avec la technologie sans être hacker
+- En couple stable avec Maya
+- Point de vue unique
+- À l’aise avec la technologie (sans être hacker)
 - Traits modulables :
-	- confiant / passif / jaloux / stratège / curieux
+  confiant / passif / jaloux / stratège / curieux
 
-Rôle narratif
-
+Rôle narratif :
 - Observateur
 - Déclencheur des routes
-- Victime ou complice selon choix
+- Victime, complice ou acteur selon choix
+
+--------------------------------------------------------
 
 💗 Maya (petite amie)
-
 - Adulte (18+)
 - Sociable, expressive, connectée
-- Loyale au départ
+- Loyale au début
+- Attentive au MC dans les premiers chapitres
 - Vulnérable à :
-	- validation extérieure
-	- pression hiérarchique
-	- domination douce
+  validation extérieure
+  pression hiérarchique
+  domination douce
+  menaces extérieures (blackmail si non géré)
 
-Règle d’or
+Règle d’or :
+Maya n’est jamais “mauvaise” au départ.
+Elle évolue avec le temps, les circonstances et les choix du joueur.
 
-Maya n’est jamais “mauvaise” au début.
-Ses choix évoluent selon :
-
-- le comportement du MC
-- les pressions extérieures
-- le temps
-- les menaces extérieur (blackmail) non géré à temps
+--------------------------------------------------------
 
 🔥 Élias — Supérieur au travail (Hard NTR)
-
 - Adulte (18+)
-- Supérieur hiérarchique direct ou indirect
+- Supérieur hiérarchique
 - Charismatique, sûr de lui
-- N’utilise jamais la force
+- N’utilise jamais la force physique
 - Utilise :
-	- la position
-	- l’ambiguïté
-	- la pression professionnelle
+  sa position
+  l’ambiguïté
+  la pression professionnelle
+  le chantage indirect
 
-Relation avec Maya
-
-- Strictement professionnelle au départ
-- Favoritisme léger
+Relation avec Maya :
+- Strictement professionnelle au début
+- Favoritisme discret
 - Compliments déguisés
 
-Introduction
+Introduction :
+- Mentionné tôt
+- Devient actif tardivement
 
-- Mentionné très tôt
-- Actif plus tard
+--------------------------------------------------------
 
 💪 Noah — Entraîneur (Soft NTR)
-
 - Adulte (18+)
 - Coach sportif
-- Compliments normalisés
-- Rapprochement et attirance physique
 - Présence rassurante
+- Compliments normalisés
+- Attirance physique progressive
 
-Relation avec Maya
-
+Relation avec Maya :
 - Consentante
 - Banale au départ
 - Glisse lentement vers l’ambiguïté
 
-Introduction
+Introduction :
+- Tôt, sans danger apparent
 
-- Tôt, mais sans danger apparent
+--------------------------------------------------------
 
-👩 Femme amie/collègue Maya (nom à définir) (double NTR potentiel)
-
+👩 Femme amie / collègue de Maya (double NTR potentiel)
 - Adulte (18+)
-- Collègue / connaissance / amie indirecte
+- Amie ou collègue de Maya
 - Soutien émotionnel du MC
 - Flirt progressif avec le MC
 
-Fonction
-
+Fonction :
+- Créer un miroir émotionnel
 - Montrer au MC ce qu’il est en train de perdre
 - Créer une distance avec Maya
 - Possible double NTR si elle se rapproche d’un rival
 
-🧊 L’Ex de Maya (introduit tard)
+--------------------------------------------------------
 
+🧊 L’Ex de Maya (introduit tard)
 - Adulte (18+)
 - Passé émotionnel non résolu
 - Catalyseur narratif
 
-Règle stricte
-❌ Jamais introduit avant que :
-
+Règle stricte :
+Ne jamais introduire l’ex avant que :
 - une route soit engagée
 - la relation soit déjà fragilisée
 
+========================================================
+5) RELATIONS ENTRE PERSONNAGES
+========================================================
 
-4) RELATIONS ENTRE PERSONNAGES
+MC ↔ Maya :
+Relation centrale, évolutive, sincère au départ
 
-MC ↔ Maya : relation centrale, évolutive
+Maya ↔ Noah :
+Validation douce → attirance physique → flirt
 
-Maya ↔ Noah : validation douce → Attirance physique → flirt
+Maya ↔ Élias :
+Hiérarchie → pression → blackmail → domination
 
-Maya ↔ Élias : hiérarchie → pression → Blackmail → domination
+MC ↔ amie de Maya :
+Soutien → flirt → culpabilité → possible trahison
 
-MC ↔ amie Maya : soutien → flirt → culpabilité / Trompe Maya ?
+Maya ↔ Ex :
+Nostalgie → doute → bascule émotionnelle
 
-Maya ↔ Ex : nostalgie → bascule émotionnelle
+Règle :
+Jamais plus d’un conflit MAJEUR actif simultanément,
+mais plusieurs situations peuvent se succéder.
 
-👉 Jamais plus d’un conflit majeur actif au même moment mais possible de plusieurs situation à la suite.
-
-
-5) STRUCTURE DES ROUTES
+========================================================
+6) STRUCTURE DES ROUTES
+========================================================
 
 💖 LOVE ROUTE
-
 - Communication
 - Confiance
 - Interventions calmes
-- Pas d’espionnage abusif
+- Espionnage minimal ou assumé
+- CG “happy life” prolongées
 
 🌸 SOFT NTR (Noah)
-
 - Passivité
 - Observation silencieuse
 - Flirt progressif
 - Humiliation indirecte
+- CG ambiguës
 
 🔥 HARD NTR (Élias)
-
 - Faiblesse relationnelle
 - Pression hiérarchique
-- Découverte tardive
+- Blackmail
 - Domination psychologique
+- CG de plus en plus explicites (progressif)
 
 🕶️ NTS
-
 - Choix conscients du MC
 - Acceptation
 - Voyeurisme assumé
-- Honte → excitation
+- Honte qui devient excitation
 
+========================================================
+7) APPLICATIONS & INTÉGRATION LOGIQUE
+========================================================
 
-6) DÉCOUVERTE DU NTR
+Messagerie principale
+- MC ↔ Maya
+- Pilier émotionnel
 
-Synchronisation Cloud au téléphone de Maya -> Découverte progressif de la situation.
-Ajout d'une application Onlyfan like. Le MC y vera les publications anonymes des rivaux se rapprochant de Maya selon leurs méthodes.
+Galerie
+- CG “happy life” au début
+- CG ambiguës puis NTR avec progression
 
+App Travail
+- Messages professionnels
+- Pression Élias
 
-7) DIRECTIVES D’ÉCRITURE (POUR IA)
+App Sport
+- Messages Noah
+- Photos de progression
 
-- Réaliste
+App Instagram-like (soft)
+- Maya + autres
+- Likes, stories, DMs
+- Validation extérieure
+- Ambiguïté sociale
+
+App OnlyFan-like (hard)
+- Introduite tard
+- Contenus privés
+- Rivaux abonnés / acteurs
+- Humiliation psychologique
+- Centrale en Hard NTR / NTS
+
+Synchronisation Cloud
+- Débloque progressivement :
+  messages supprimés
+  aperçus
+  fichiers temporaires
+  notifications fantômes
+
+========================================================
+8) RYTHME DES CG & CONTENU VISUEL
+========================================================
+
+Début du jeu :
+- CG romantiques
+- Intimes mais positives
+- “Happy life”
+
+Progression :
+- CG ambiguës
+- Regards, poses, contextes douteux
+
+Plus tard :
+- CG NTR de plus en plus osées
+- Jamais tout d’un coup
+- Toujours justifiées par la narration
+
+========================================================
+9) DIRECTIVES D’ÉCRITURE (POUR IA)
+========================================================
+
 - Moderne
+- Réaliste
 - Naturel
-- Suggestif, des fois gratuit
+- Suggestif
+- Parfois gratuit mais jamais incohérent
 - Accent sur :
-	- silences
-	- temps de réponse
-	- emojis ambigus
-	- messages effacés
-	- notifications tardives
+  silences
+  délais de réponse
+  emojis ambigus
+  messages effacés
+  notifications tardives
 
+========================================================
+10) OBJECTIF DE CETTE BIBLE
+========================================================
 
-8) OBJECTIF DE CETTE BIBLE
-
-Ce document sert à :
-
+Ce document sert de référence unique pour :
+- écrire les chapitres
 - générer des scènes
-- écrire des dialogues
-- créer des CG cohérentes
+- créer des dialogues
+- produire des CG cohérentes
 - planifier les mises à jour
 - guider toute IA externe
-- éviter les incohérences narratives
 
+========================================================
+11) NOTE TECHNIQUE
+========================================================
 
-9) Autre
+- CG IA au début
+- Transition prévue vers HoneySelect 2 DX
+  dans de futures mises à jour majeures
 
-Le jeu sera d'abord avec des CG IA et sera dans les prochaines grosses mise à jour sous les visuel de HoneySelect 2 DX.
+========================================================
+FIN — BIBLE DU JEU V2
+========================================================
